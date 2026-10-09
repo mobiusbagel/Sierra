@@ -817,8 +817,7 @@ static void handle_one_player_input(
 			ls_x = gamepad->sticks[_gamepad_stick_left].x;
 			ls_y = gamepad->sticks[_gamepad_stick_left].y;
 		}
-		boolean left_stick_active = (ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000) ||
-			(input.throttle.i != 0.f || input.throttle.j != 0.f);
+		boolean left_stick_active = (ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000);
 		/* Mouse active if delta exceeds deadzone (filters jitter/noise).
 		   Use delta DIRECTION directly for facing (no accumulation = no drift). */
 		boolean mouse_active = (fabs(input.facing_delta.yaw) > 0.001f || fabs(input.facing_delta.pitch) > 0.001f);
@@ -913,21 +912,9 @@ static void handle_one_player_input(
 				}
 				else
 				{
-					/* Safe D-pad heuristic: If gamepad is connected and throttle is digital,
-					   it's likely D-pad (not WASD). Ignore to prevent D-pad movement.
-					   (Direct button access crashes, so we use this heuristic) */
-					if (gamepad && (input.throttle.i == 1.f || input.throttle.i == -1.f ||
-						input.throttle.j == 1.f || input.throttle.j == -1.f))
-					{
-						/* Likely D-pad: ignore for movement */
-						world_x = 0.f;
-						world_y = 0.f;
-					}
-					else
-					{
-						world_x = -input.throttle.j;
-						world_y = input.throttle.i;
-					}
+					/* m+kb removed: controller left stick only (for now) */
+					world_x = 0.f;
+					world_y = 0.f;
 				}
 				real magnitude = sqrt(world_x * world_x + world_y * world_y);
 				/* Move relative to FACING (which is now aim direction) */
@@ -967,21 +954,9 @@ static void handle_one_player_input(
 				}
 				else
 				{
-					/* Safe D-pad heuristic: If gamepad is connected and throttle is digital,
-					   it's likely D-pad (not WASD). Ignore to prevent D-pad movement.
-					   (Direct button access crashes, so we use this heuristic) */
-					if (gamepad && (input.throttle.i == 1.f || input.throttle.i == -1.f ||
-						input.throttle.j == 1.f || input.throttle.j == -1.f))
-					{
-						/* Likely D-pad: ignore for movement */
-						world_x = 0.f;
-						world_y = 0.f;
-					}
-					else
-					{
-						world_x = -input.throttle.j;
-						world_y = input.throttle.i;
-					}
+					/* m+kb removed: controller left stick only (for now) */
+					world_x = 0.f;
+					world_y = 0.f;
 				}
 				real yaw = player->desired_angles.yaw;
 				real cos_y = cosine(yaw);
