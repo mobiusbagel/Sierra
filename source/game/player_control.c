@@ -913,8 +913,21 @@ static void handle_one_player_input(
 				}
 				else
 				{
-					world_x = -input.throttle.j;
-					world_y = input.throttle.i;
+					/* Safe D-pad heuristic: If gamepad is connected and throttle is digital,
+					   it's likely D-pad (not WASD). Ignore to prevent D-pad movement.
+					   (Direct button access crashes, so we use this heuristic) */
+					if (gamepad && (input.throttle.i == 1.f || input.throttle.i == -1.f ||
+						input.throttle.j == 1.f || input.throttle.j == -1.f))
+					{
+						/* Likely D-pad: ignore for movement */
+						world_x = 0.f;
+						world_y = 0.f;
+					}
+					else
+					{
+						world_x = -input.throttle.j;
+						world_y = input.throttle.i;
+					}
 				}
 				real magnitude = sqrt(world_x * world_x + world_y * world_y);
 				/* Move relative to FACING (which is now aim direction) */
@@ -954,8 +967,21 @@ static void handle_one_player_input(
 				}
 				else
 				{
-					world_x = -input.throttle.j;
-					world_y = input.throttle.i;
+					/* Safe D-pad heuristic: If gamepad is connected and throttle is digital,
+					   it's likely D-pad (not WASD). Ignore to prevent D-pad movement.
+					   (Direct button access crashes, so we use this heuristic) */
+					if (gamepad && (input.throttle.i == 1.f || input.throttle.i == -1.f ||
+						input.throttle.j == 1.f || input.throttle.j == -1.f))
+					{
+						/* Likely D-pad: ignore for movement */
+						world_x = 0.f;
+						world_y = 0.f;
+					}
+					else
+					{
+						world_x = -input.throttle.j;
+						world_y = input.throttle.i;
+					}
 				}
 				real yaw = player->desired_angles.yaw;
 				real cos_y = cosine(yaw);
