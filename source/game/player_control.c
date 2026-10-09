@@ -789,18 +789,23 @@ static void handle_one_player_input(
 	player->throttle = input.throttle;
 
 	/* Phase 3a: Top-down movement - screen-relative.
-	   Debug revealed: throttle.i = forward (UP=+1, DOWN=-1)
-	                   throttle.j = strafe, INVERTED (LEFT=+1, RIGHT=-1)
-	   World mapping: X (east) = -j, Y (north) = i
-	   yaw = atan2(X, Y): 0=north, pi/2=east */
+	   Debug revealed: input.throttle.i = forward (UP=+1, DOWN=-1)
+	                   input.throttle.j = strafe, INVERTED (LEFT=+1, RIGHT=-1)
+	   Desired world dir: X (east) = -j, Y (north) = i
+	   Strategy: Set facing to world direction, set throttle to "forward"
+	   with magnitude = input strength. Halo moves character forward
+	   relative to facing, which is now the desired world direction. */
 	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
 	{
-		real world_x = -input.throttle.j;  /* Invert strafe: LEFT(+1)->west(-X) */
-		real world_y = input.throttle.i;   /* Forward: UP(+1)->north(+Y) */
+		real world_x = -input.throttle.j;
+		real world_y = input.throttle.i;
+		real magnitude = sqrt(world_x * world_x + world_y * world_y);
+		/* Face the desired world direction */
 		player->desired_angles.yaw = arctangent(world_x, world_y);
-		/* Set throttle to world-aligned values */
-		player->throttle.i = world_x;
-		player->throttle.j = world_y;
+		/* Move forward (relative to facing) with input magnitude.
+		   Do NOT set throttle to world values - it's facing-relative! */
+		player->throttle.i = magnitude;
+		player->throttle.j = 0.f;
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
