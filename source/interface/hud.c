@@ -1349,24 +1349,37 @@ static void temporary_hud_draw(
 				? "FULL-SPECTRUM VISION "
 				: "");
 
-		/* Phase 4: Top-down lock-on reticle on target */
+		/* Phase 4: Top-down lock-on reticle tracks target */
+		/* Draws circular reticle in horizontal plane at target position */
 		{
 			extern boolean topdown_mode_enabled;
 			extern long topdown_lock_target_index;
 			if (topdown_mode_enabled && topdown_lock_target_index != NONE)
 			{
-				struct unit_datum *target_unit = unit_get(topdown_lock_target_index);
+				struct unit_datum *target_unit;
+				target_unit = unit_get(topdown_lock_target_index);
 				if (target_unit)
 				{
-					real_point3d tpos = target_unit->object.position;
-					real_point3d p0, p1;
-					real s = 0.3f;
-					tpos.z += 0.5f;
-					/* Draw cross at target */
-					p0 = tpos; p0.x -= s; p1 = tpos; p1.x += s;
-					rasterizer_debug_line(&p0, &p1, global_real_argb_red);
-					p0 = tpos; p0.y -= s; p1 = tpos; p1.y += s;
-					rasterizer_debug_line(&p0, &p1, global_real_argb_red);
+					real_point3d center;
+					real_point3d pts[17];
+					real radius;
+					long i;
+					real ang;
+					center = target_unit->object.position;
+					center.z += 0.6f;
+					radius = 0.4f;
+					ang = 0.f;
+					for (i = 0; i < 17; i++)
+					{
+						pts[i].x = center.x + cosine(ang) * radius;
+						pts[i].y = center.y + sine(ang) * radius;
+						pts[i].z = center.z;
+						ang += 6.2831853f / 16.f;
+					}
+					for (i = 0; i < 16; i++)
+					{
+						rasterizer_debug_line(&pts[i], &pts[i+1], global_real_argb_red);
+					}
 				}
 			}
 		}
