@@ -638,12 +638,12 @@ static void director_choose_game_perspective(
 	unit_index = player_control_get_unit_index(local_player_index);
 	following = director_desired_perspective(unit_index, &perspective);
 	/* Top-down persistence fix: On level load, seat_state may already be 2 (persisted)
-	   but the actual camera was reset. Force re-initialization if topdown is enabled
-	   and we're not currently using the following camera. */
+	   but the actual camera was reset to first-person. Reset seat_state to trigger
+	   a normal (smooth) transition to following camera. */
 	extern boolean topdown_mode_enabled;
 	if (topdown_mode_enabled && director->camera_proc != (director_camera_update_proc)following_camera_update)
 	{
-		force = TRUE;
+		director->seat_state = 0;  /* Force seat_state != perspective (2), triggers smooth switch */
 	}
 	if (force || director->seat_state != perspective)
 	{
