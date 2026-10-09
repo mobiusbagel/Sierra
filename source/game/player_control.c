@@ -899,13 +899,18 @@ static void handle_one_player_input(
 							player->desired_angles.yaw = yaw + diff * 0.35f;
 					/* Pitch for elevation: aim up/down at target */
 					{
-						real dx_p = tgt.position.x - pos.x;
-						real dy_p = tgt.position.y - pos.y;
-						real dz_p = tgt.position.z - pos.z;
-						real dist2d_p = sqrt(dx_p*dx_p + dy_p*dy_p);
-						if (dist2d_p > 0.1f)
+						long punit_idx = player_control_get_unit_index(local_player_index);
+						struct unit_datum *punit = unit_get(punit_idx);
+						if (punit)
 						{
-							player->desired_angles.pitch = arctangent(dz_p, dist2d_p);
+							real dx_p = tgt.position.x - punit->object.position.x;
+							real dy_p = tgt.position.y - punit->object.position.y;
+							real dz_p = tgt.position.z - punit->object.position.z;
+							real dist2d_p = sqrt(dx_p*dx_p + dy_p*dy_p);
+							if (dist2d_p > 0.1f)
+							{
+								player->desired_angles.pitch = arctangent(dz_p, dist2d_p);
+							}
 						}
 					}
 						}
@@ -1047,13 +1052,18 @@ static void handle_one_player_input(
 						player->desired_angles.yaw = base_yaw + diff * 0.15f;
 					/* Pitch for elevation */
 					{
-						real dx_m = tgt.position.x - pos.x;
-						real dy_m = tgt.position.y - pos.y;
-						real dz_m = tgt.position.z - pos.z;
-						real dist2d_m = sqrt(dx_m*dx_m + dy_m*dy_m);
-						if (dist2d_m > 0.1f)
+						long punit_idx2 = player_control_get_unit_index(local_player_index);
+						struct unit_datum *punit2 = unit_get(punit_idx2);
+						if (punit2)
 						{
-							player->desired_angles.pitch = arctangent(dz_m, dist2d_m);
+							real dx_m = tgt.position.x - punit2->object.position.x;
+							real dy_m = tgt.position.y - punit2->object.position.y;
+							real dz_m = tgt.position.z - punit2->object.position.z;
+							real dist2d_m = sqrt(dx_m*dx_m + dy_m*dy_m);
+							if (dist2d_m > 0.1f)
+							{
+								player->desired_angles.pitch = arctangent(dz_m, dist2d_m);
+							}
 						}
 					}
 					}
