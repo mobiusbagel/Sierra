@@ -387,6 +387,7 @@ boolean topdown_mode_enabled = FALSE;
 real topdown_cursor_x = 0.f;
 real topdown_cursor_y = 0.f;
 boolean topdown_cursor_active = FALSE;
+long topdown_lock_target_index = NONE;
 
 void topdown_mode_set(boolean enabled)
 {
@@ -874,10 +875,12 @@ static void handle_one_player_input(
 						if (diff > 0.43633f || diff < -0.43633f)
 						{
 							lock_target_index = NONE;
+							topdown_lock_target_index = NONE;
 						}
 						else
 						{
 							lock_target_index = tgt.object_index;
+							topdown_lock_target_index = tgt.object_index;
 							lock_target_yaw = tyaw;
 							player->desired_angles.yaw = yaw + diff * 0.35f;
 						}
