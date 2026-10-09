@@ -340,6 +340,11 @@ short director_desired_perspective(
 		*perspective = 2;
 		return TRUE;
 	}
+	/* DEBUG: Print when top-down is enabled but unit is invalid */
+	if (topdown_mode_enabled)
+	{
+		console_printf(TRUE, "TOPDOWN DEBUG: enabled=%d unit_index=%d", topdown_mode_enabled, unit_index);
+	}
 
 	*perspective = 0;
 	if (unit_index != NONE)
