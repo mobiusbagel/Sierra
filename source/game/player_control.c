@@ -903,8 +903,19 @@ static void handle_one_player_input(
 			/* Movement still from left stick (enables strafing) */
 			if (left_stick_active)
 			{
-				real world_x = (real)ls_x / 32767.f;
-				real world_y = (real)ls_y / 32767.f;
+				real world_x;
+				real world_y;
+				/* Strafe: left stick, or WASD via throttle if stick idle */
+				if (ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000)
+				{
+					world_x = (real)ls_x / 32767.f;
+					world_y = (real)ls_y / 32767.f;
+				}
+				else
+				{
+					world_x = -input.throttle.j;
+					world_y = input.throttle.i;
+				}
 				real magnitude = sqrt(world_x * world_x + world_y * world_y);
 				/* Move relative to FACING (which is now aim direction) */
 				/* Convert world dir to facing-relative: rotate by -yaw */
@@ -933,8 +944,19 @@ static void handle_one_player_input(
 			/* Movement from left stick/WASD, converted to facing-relative for strafing */
 			if (left_stick_active)
 			{
-				real world_x = (real)ls_x / 32767.f;
-				real world_y = (real)ls_y / 32767.f;
+				real world_x;
+				real world_y;
+				/* Strafe: left stick, or WASD via throttle if stick idle */
+				if (ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000)
+				{
+					world_x = (real)ls_x / 32767.f;
+					world_y = (real)ls_y / 32767.f;
+				}
+				else
+				{
+					world_x = -input.throttle.j;
+					world_y = input.throttle.i;
+				}
 				real yaw = player->desired_angles.yaw;
 				real cos_y = cosine(yaw);
 				real sin_y = sine(yaw);
