@@ -810,9 +810,9 @@ static void handle_one_player_input(
 		/* Deadzone: ignore small deflections */
 		boolean right_stick_active = (rs_x < -8000 || rs_x > 8000 || rs_y < -8000 || rs_y > 8000);
 		boolean left_stick_active = (input.throttle.i != 0.f || input.throttle.j != 0.f);
-		/* Mouse active if delta non-zero. Use delta DIRECTION directly for facing
-		   (no accumulation = no drift, exact cardinals work). */
-		boolean mouse_active = (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f);
+		/* Mouse active if delta exceeds deadzone (filters jitter/noise).
+		   Use delta DIRECTION directly for facing (no accumulation = no drift). */
+		boolean mouse_active = (fabs(input.facing_delta.yaw) > 0.001f || fabs(input.facing_delta.pitch) > 0.001f);
 		/* Update globals for HUD reticle (use delta direction) */
 		if (mouse_active)
 		{
