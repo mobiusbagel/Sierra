@@ -850,7 +850,7 @@ static void handle_one_player_input(
 					struct aim_assist_target tgt;
 					struct player_datum *pdat;
 					short team;
-					object_get_position(unit_index, &pos);
+					pos = unit_get(unit_index)->object.position;
 					dir.i = sine(yaw);
 					dir.j = cosine(yaw);
 					dir.k = 0.f;
@@ -968,7 +968,7 @@ static void handle_one_player_input(
 				unit_ptr = unit_get(unit_index);
 				if (unit_ptr)
 				{
-					object_get_position(unit_index, &pos);
+					pos = unit_get(unit_index)->object.position;
 					dir.i = sine(base_yaw);
 					dir.j = cosine(base_yaw);
 					dir.k = 0.f;
