@@ -1462,7 +1462,7 @@ void hud_draw_screen(
 		{
 			struct unit_datum *target_unit;
 			target_unit = unit_get(topdown_lock_target_index);
-			if (target_unit)
+			if (target_unit && target_unit->health > 0.f)
 			{
 				real_point3d center;
 				real_point3d pts[17];
