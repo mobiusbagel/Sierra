@@ -1354,6 +1354,11 @@ static void temporary_hud_draw(
 		{
 			extern boolean topdown_mode_enabled;
 			extern long topdown_lock_target_index;
+			/* DEBUG: Log when HUD checks lock-on */
+			if (topdown_mode_enabled)
+			{
+				console_printf(TRUE, "HUD: topdown enabled, lock_target=%d", topdown_lock_target_index);
+			}
 			if (topdown_mode_enabled && topdown_lock_target_index != NONE)
 			{
 				struct unit_datum *target_unit;
