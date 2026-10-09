@@ -1349,6 +1349,27 @@ static void temporary_hud_draw(
 				? "FULL-SPECTRUM VISION "
 				: "");
 
+		/* Phase 4: Top-down lock-on reticle on target */
+		{
+			extern boolean topdown_mode_enabled;
+			extern long topdown_lock_target_index;
+			if (topdown_mode_enabled && topdown_lock_target_index != NONE)
+			{
+				struct object_datum *target_obj = object_get(topdown_lock_target_index);
+				if (target_obj)
+				{
+					real_point3d tpos = target_obj->position;
+					real_point3d p0, p1;
+					real s = 0.3f;
+					tpos.z += 0.5f;
+					/* Draw cross at target */
+					p0 = tpos; p0.x -= s; p1 = tpos; p1.x += s;
+					rasterizer_debug_line(&p0, &p1, global_real_argb_red);
+					p0 = tpos; p0.y -= s; p1 = tpos; p1.y += s;
+					rasterizer_debug_line(&p0, &p1, global_real_argb_red);
+				}
+			}
+		}
 		temporary_hud_draw_reticle(
 			weapon_definition->weapon.aim_assist_parameters.autoaim_angle /
 				weapon_get_zoom_magnification(
