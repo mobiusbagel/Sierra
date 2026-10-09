@@ -967,26 +967,11 @@ static void handle_one_player_input(
 				real diff;
 			/* Phase 3a: No aim input, face movement direction */
 			/* (world_x/world_y already set from left stick above, else use throttle for WASD) */
-			/* Ignore throttle if D-pad is pressed (D-pad is for weapons, not movement) */
+			/* Use throttle for WASD (D-pad handling removed - was crashing) */
+			if (!(ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000))
 			{
-				boolean dpad_pressed;
-				dpad_pressed = FALSE;
-				if (gamepad)
-				{
-					if (gamepad->buttons[_gamepad_binary_button_dpad_up] ||
-						gamepad->buttons[_gamepad_binary_button_dpad_down] ||
-						gamepad->buttons[_gamepad_binary_button_dpad_left] ||
-						gamepad->buttons[_gamepad_binary_button_dpad_right])
-					{
-						dpad_pressed = TRUE;
-						console_printf(TRUE, "DPAD PRESSED - ignoring throttle for movement");
-					}
-				}
-				if (!(ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000) && !dpad_pressed)
-				{
-					world_x = -input.throttle.j;
-					world_y = input.throttle.i;
-				}
+				world_x = -input.throttle.j;
+				world_y = input.throttle.i;
 			}
 			magnitude = sqrt(world_x * world_x + world_y * world_y);
 			base_yaw = arctangent(world_y, world_x);
