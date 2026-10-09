@@ -889,6 +889,46 @@ static void handle_one_player_input(
 			player->desired_angles.yaw = arctangent(world_y, world_x);
 			player->throttle.i = magnitude;
 			player->throttle.j = 0.f;
+
+			/* Phase 3d: Gungeon-style magnetic assist (idle only) */
+			/* Subtle pull toward nearest enemy in narrow cone in front */
+			{
+				long unit_index = player->unit_index;
+				if (unit_index != NONE)
+				{
+					struct unit_datum *unit = unit_get(unit_index);
+				if (unit)
+				{
+					/* Get player position */
+					real_point3d position;
+					object_get_position(unit_index, &position);
+					/* Create horizontal direction from current yaw */
+					real yaw = player->desired_angles.yaw;
+					real_vector3d direction;
+					direction.i = sine(yaw);   /* East */
+					direction.j = cosine(yaw);  /* North */
+					direction.k = 0.f;
+					/* Setup narrow magnetism cone (6 degrees, from research 3-8.6) */
+					struct aim_assist_parameters params;
+					params.magnetism_angle = DEGREES_TO_RADIANS(6.f);
+					params.magnetism_distance = 30.f;
+					params.autoaim_angle = 0.f;
+					params.autoaim_distance = 0.f;
+					params.deviation_angle = 0.f;
+					struct aim_assist_target target;
+					/* Find best target in front */
+					if (aim_assist(&params, &position, &direction, unit_index, player->team_index, &target))
+					{
+						/* Nudge facing 15% toward target (subtle, not snap) */
+						real target_yaw = arctangent(target.vector.j, target.vector.i);
+						real angle_diff = target_yaw - yaw;
+						/* Normalize to [-PI, PI] */
+						while (angle_diff > PI) angle_diff -= TWO_PI;
+						while (angle_diff < -PI) angle_diff += TWO_PI;
+						player->desired_angles.yaw = yaw + angle_diff * 0.15f;
+					}
+				}
+			}
 		}
 	}
 	player->primary_trigger = input.primary_trigger;
