@@ -227,6 +227,9 @@ void following_camera_update(
 		command->timer = 0.f;
 		command->flags = 0;
 		SET_FLAG(command->flags, 0, TRUE);
+		/* Ignore small obstructions (trees, decorations) to prevent aggressive zoom.
+		   Major geometry (walls, ceilings) still handled via depth clamp. */
+		SET_FLAG(command->flags, 4, TRUE);  /* _observer_command_ignore_obstructions_bit */
 		goto topdown_done;
 	}
 
