@@ -7744,7 +7744,7 @@ static struct hs_function_definition const topdown_mode_definition=
 {
 	_hs_type_void,
 	0,
-	"topdown_mode",
+	"mode",
 	hs_macro_function_parse,
 	topdown_mode_evaluate,
 	"toggles top-down camera mode on/off",
@@ -14170,7 +14170,7 @@ static void topdown_mode_evaluate(
 	boolean initialize)
 {
 	topdown_mode_enabled = !topdown_mode_enabled;
-	console_printf(FALSE, "topdown_mode is now %s", topdown_mode_enabled ? "ON" : "OFF");
+	console_printf(FALSE, "mode is now %s", topdown_mode_enabled ? "TDP" : "FPP");
 	hs_return(thread_index, 0);
 	return;
 }
