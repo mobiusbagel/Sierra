@@ -792,20 +792,19 @@ static void handle_one_player_input(
 	   Debug revealed: input.throttle.i = forward (UP=+1, DOWN=-1)
 	                   input.throttle.j = strafe, INVERTED (LEFT=+1, RIGHT=-1)
 	   Desired world dir: X (east) = -j, Y (north) = i
-	   Strategy: Set facing to world direction, set throttle to "forward"
-	   with magnitude = input strength. Halo moves character forward
-	   relative to facing, which is now the desired world direction. */
+	   Facing is correct via yaw = atan2(world_x, world_y).
+	   Movement was 90deg off: throttle.i (forward) doesn't align with yaw.
+	   Trying throttle.j (strafe) instead. */
 	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
 	{
 		real world_x = -input.throttle.j;
 		real world_y = input.throttle.i;
 		real magnitude = sqrt(world_x * world_x + world_y * world_y);
-		/* Face the desired world direction */
+		/* Face the desired world direction (this part is correct) */
 		player->desired_angles.yaw = arctangent(world_x, world_y);
-		/* Move forward (relative to facing) with input magnitude.
-		   Do NOT set throttle to world values - it's facing-relative! */
-		player->throttle.i = magnitude;
-		player->throttle.j = 0.f;
+		/* Try strafe instead of forward for movement */
+		player->throttle.i = 0.f;
+		player->throttle.j = magnitude;
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
