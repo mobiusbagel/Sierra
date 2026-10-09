@@ -938,15 +938,57 @@ static void handle_one_player_input(
 		}
 		else if (left_stick_active)
 		{
+			/* C89: All declarations at top of block */
+			real world_x;
+			real world_y;
+			real magnitude;
+			real base_yaw;
+			long unit_index;
+			struct unit_datum *unit_ptr;
+			real_point3d pos;
+				real_vector3d dir;
+				struct aim_assist_parameters ap;
+				struct aim_assist_target tgt;
+				struct player_datum *pdat;
+				short team_idx;
+				real tyaw;
+				real diff;
 			/* Phase 3a: No aim input, face movement direction */
-			real world_x = -input.throttle.j;
-			real world_y = input.throttle.i;
-			real magnitude = sqrt(world_x * world_x + world_y * world_y);
-			player->desired_angles.yaw = arctangent(world_y, world_x);
+			world_x = -input.throttle.j;
+			world_y = input.throttle.i;
+			magnitude = sqrt(world_x * world_x + world_y * world_y);
+			base_yaw = arctangent(world_y, world_x);
+			player->desired_angles.yaw = base_yaw;
 			player->throttle.i = magnitude;
 			player->throttle.j = 0.f;
-			/* Phase 3d: DISABLED - C89 compliance issues */
-			/* TODO: Reimplement with proper C89 declarations */
+			/* Phase 3d: Gungeon-style magnetic assist (idle only, C89-compliant) */
+			unit_index = player->unit_index;
+			if (unit_index != NONE)
+			{
+				unit_ptr = unit_get(unit_index);
+				if (unit_ptr)
+				{
+					object_get_position(unit_index, &pos);
+					dir.i = sine(base_yaw);
+					dir.j = cosine(base_yaw);
+					dir.k = 0.f;
+					ap.magnetism_angle = 0.10472f;
+					ap.magnetism_distance = 30.f;
+					ap.autoaim_angle = 0.f;
+					ap.autoaim_distance = 0.f;
+					ap.deviation_angle = 0.f;
+					pdat = player_get(local_player_get_player_index(local_player_index));
+					team_idx = pdat ? pdat->team_index : 0;
+					if (aim_assist(&ap, &pos, &dir, unit_index, team_idx, &tgt))
+					{
+						tyaw = arctangent(tgt.vector.j, tgt.vector.i);
+						diff = tyaw - base_yaw;
+						while (diff > 3.14159265f) diff -= 6.2831853f;
+						while (diff < -3.14159265f) diff += 6.2831853f;
+						player->desired_angles.yaw = base_yaw + diff * 0.15f;
+					}
+				}
+			}
 		}
 	}
 	player->primary_trigger = input.primary_trigger;
