@@ -810,39 +810,19 @@ static void handle_one_player_input(
 		/* Deadzone: ignore small deflections */
 		boolean right_stick_active = (rs_x < -8000 || rs_x > 8000 || rs_y < -8000 || rs_y > 8000);
 		boolean left_stick_active = (input.throttle.i != 0.f || input.throttle.j != 0.f);
-		/* Mouse active if facing_delta non-zero (not from stick, since we use raw) */
-		/* Note: facing_delta is inhibited for mouse in topdown, so we check raw mouse */
-		/* For now, use a simple heuristic: if right stick idle and mouse moved recently */
-		static real mouse_cursor_x = 0.f;
-		static real mouse_cursor_y = 0.f;
-		static int mouse_idle_frames = 0;
-		boolean mouse_active = FALSE;
-
-		/* Update virtual cursor from mouse delta (input.facing_delta is mouse-only now) */
-		/* Right stick uses raw gamepad, so facing_delta is mouse-only */
-		if (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f)
+		/* Mouse active if delta non-zero. Use delta DIRECTION directly for facing
+		   (no accumulation = no drift, exact cardinals work). */
+		boolean mouse_active = (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f);
+		/* Update globals for HUD reticle (use delta direction) */
+		if (mouse_active)
 		{
-			/* Scale mouse delta to cursor movement */
-			mouse_cursor_x += input.facing_delta.yaw * 500.f;
-			mouse_cursor_y += input.facing_delta.pitch * 500.f;
-			/* Update globals for HUD reticle */
-			topdown_cursor_x = mouse_cursor_x;
-			topdown_cursor_y = mouse_cursor_y;
+			topdown_cursor_x = -input.facing_delta.yaw;
+			topdown_cursor_y = -input.facing_delta.pitch;
 			topdown_cursor_active = TRUE;
-			/* Clamp to reasonable range */
-			if (mouse_cursor_x > 1.f) mouse_cursor_x = 1.f;
-			if (mouse_cursor_x < -1.f) mouse_cursor_x = -1.f;
-			if (mouse_cursor_y > 1.f) mouse_cursor_y = 1.f;
-			if (mouse_cursor_y < -1.f) mouse_cursor_y = -1.f;
-			mouse_idle_frames = 0;
-			mouse_active = TRUE;
 		}
 		else
 		{
-			mouse_idle_frames++;
-			/* Mouse considered active for 60 frames after last movement */
-			if (mouse_idle_frames < 60 && (mouse_cursor_x != 0.f || mouse_cursor_y != 0.f))
-				mouse_active = TRUE;
+			topdown_cursor_active = FALSE;
 		}
 
 		if (right_stick_active)
@@ -876,18 +856,12 @@ static void handle_one_player_input(
 		}
 		else if (mouse_active)
 		{
-			/* Phase 3c: Mouse aiming - face virtual cursor direction */
-			/* Cursor (x,y) is offset from screen center; compute world direction */
-			/* Screen X (right) -> world east (+X); Screen Y (up) -> world north (+Y) */
-			/* Note: mouse_cursor_y is pitch-based; up on screen should be north */
-			real aim_x = mouse_cursor_x;
-			real aim_y = mouse_cursor_y;
-			/* Only update facing if cursor is meaningfully off-center */
-			if (aim_x != 0.f || aim_y != 0.f)
-			{
-				/* Mouse Y is inverted vs stick: negate to get correct facing */
-				player->desired_angles.yaw = arctangent(-aim_y, -aim_x);
-			}
+			/* Phase 3c: Mouse aiming - face mouse movement direction directly */
+			/* Use delta (not accumulated cursor) for exact cardinals, no drift */
+			real dx = -input.facing_delta.yaw;   /* Invert: mouse right = negative yaw */
+			real dy = -input.facing_delta.pitch;  /* Invert: mouse up = negative pitch? */
+			/* Convert to world: screen right -> east, screen up -> north */
+			player->desired_angles.yaw = arctangent(dy, dx);
 			/* Movement from left stick/WASD, converted to facing-relative for strafing */
 			if (left_stick_active)
 			{
