@@ -739,7 +739,7 @@ static void handle_one_player_input(
 				player->zoom_level);
 		}
 
-		if (!director_inhibited_facing(local_player_index))
+		if (!director_inhibited_facing(local_player_index) && !topdown_mode_enabled)
 		{
 			player_control_angle_step_ticks = time_delta_sec * TICKS_PER_SECOND;
 			player_control_modify_desired_angles(
