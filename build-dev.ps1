@@ -19,7 +19,9 @@ if ($LASTEXITCODE -ne 0) { exit 1 }
 
 Write-Host "=== Deploying to $GameDir ==="
 if (!(Test-Path $GameDir)) { New-Item -ItemType Directory -Path $GameDir | Out-Null }
-Copy-Item build\windows\sierra.exe, build\windows\SDL3.dll, build\windows\sierra.pdb, launch-sierra.vbs `
+# Stock OpenCE builds halo.exe; copy it as sierra.exe for consistency
+Copy-Item build\windows\halo.exe -Destination "$GameDir\sierra.exe" -Force
+Copy-Item build\windows\SDL3.dll, build\windows\halo.pdb, launch-sierra.vbs `
     -Destination $GameDir -Force
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
