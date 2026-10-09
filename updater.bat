@@ -4,10 +4,17 @@ cd /d "%~dp0"
 echo === Sierra Updater ===
 echo.
 echo [1/2] Pulling latest from GitHub...
-git pull origin sierra-dev
+git fetch origin sierra-dev
 if %errorlevel% neq 0 (
     echo.
-    echo ERROR: Git pull failed. Check your internet connection.
+    echo ERROR: Git fetch failed. Check your internet connection.
+    pause
+    exit /b 1
+)
+git reset --hard origin/sierra-dev
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Git reset failed.
     pause
     exit /b 1
 )
