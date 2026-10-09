@@ -208,7 +208,7 @@ void following_camera_update(
 	   Bypasses the track spline; uses fixed offset.
 	   Observer handles wall/ceiling avoidance automatically via penetration check.
 	   See Top-Down Camera Spec artifact for design rationale. */
-	if (topdown_mode_enabled && camera_info.unit_index != NONE && camera_info.unit_index >= 0)
+	if (topdown_mode_enabled)
 	{
 		real tilt_rad = DEGREES_TO_RADIANS(TOPDOWN_CAMERA_TILT_DEGREES);
 		/* Fixed forward: 35° tilt from vertical, looking down */
