@@ -7743,11 +7743,11 @@ static struct hs_function_definition const cheat_all_weapons_definition=
 static struct hs_function_definition const topdown_mode_definition=
 {
 	_hs_type_void,
-	1,
+	0,
 	"topdown_mode",
 	hs_macro_function_parse,
 	topdown_mode_evaluate,
-	"toggles top-down camera mode (true=on, false=off)",
+	"toggles top-down camera mode on/off",
 	NULL,
 	0,
 };
@@ -14164,7 +14164,15 @@ HS_EVALUATE_NO_ARGUMENTS(object_pvs_clear_evaluate, object_pvs_clear)
 HS_EVALUATE_NO_ARGUMENTS(breakable_surfaces_reset_evaluate, breakable_surfaces_reset)
 HS_EVALUATE_NO_ARGUMENTS(cheat_all_powerups_evaluate, cheat_all_powerups)
 HS_EVALUATE_NO_ARGUMENTS(cheat_all_weapons_evaluate, cheat_all_weapons)
-HS_EVALUATE_VOID_BOOLEAN(topdown_mode_evaluate, topdown_mode_set)
+static void topdown_mode_evaluate(
+	short function_index,
+	long thread_index,
+	boolean initialize)
+{
+	topdown_mode_enabled = !topdown_mode_enabled;
+	hs_return(thread_index, 0);
+	return;
+}
 HS_EVALUATE_NO_ARGUMENTS(cheat_all_vehicles_evaluate, cheat_all_vehicles)
 HS_EVALUATE_NO_ARGUMENTS(cheat_teleport_to_camera_evaluate, cheat_teleport_to_camera)
 HS_EVALUATE_NO_ARGUMENTS(cheat_active_camouflage_evaluate, cheat_active_camouflage)
