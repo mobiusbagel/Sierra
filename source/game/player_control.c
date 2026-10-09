@@ -967,12 +967,17 @@ static void handle_one_player_input(
 				real diff;
 			/* Phase 3a: No aim input, face movement direction */
 			/* (world_x/world_y already set from left stick above, else use throttle for WASD) */
-			/* Use throttle for WASD (D-pad handling removed - was crashing) */
 			if (!(ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000))
 			{
 				world_x = -input.throttle.j;
 				world_y = input.throttle.i;
 			}
+			/* Guard: Don't compute yaw if no movement (arctangent(0,0) = NaN) */
+			if (world_x == 0.f && world_y == 0.f)
+			{
+				/* No movement, keep current facing */
+			}
+			else
 			magnitude = sqrt(world_x * world_x + world_y * world_y);
 			base_yaw = arctangent(world_y, world_x);
 			player->desired_angles.yaw = base_yaw;
