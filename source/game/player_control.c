@@ -979,6 +979,7 @@ static void handle_one_player_input(
 						gamepad->buttons[_gamepad_binary_button_dpad_right])
 					{
 						dpad_pressed = TRUE;
+						console_printf(TRUE, "DPAD PRESSED - ignoring throttle for movement");
 					}
 				}
 				if (!(ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000) && !dpad_pressed)
