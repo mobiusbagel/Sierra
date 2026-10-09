@@ -890,6 +890,7 @@ static void handle_one_player_input(
 			player->throttle.i = magnitude;
 			player->throttle.j = 0.f;
 
+#if 0 /* Phase 3d disabled - needs build fix */
 			/* Phase 3d: Gungeon-style magnetic assist (idle only) */
 			/* Subtle pull toward nearest enemy in narrow cone in front */
 			{
@@ -929,6 +930,7 @@ static void handle_one_player_input(
 					}
 				}
 			}
+#endif
 		}
 	}
 	player->primary_trigger = input.primary_trigger;
