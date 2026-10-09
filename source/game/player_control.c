@@ -822,9 +822,9 @@ static void handle_one_player_input(
 		/* Right stick uses raw gamepad, so facing_delta is mouse-only */
 		if (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f)
 		{
-			/* Scale mouse delta to cursor movement */
-			mouse_cursor_x += input.facing_delta.yaw * 500.f;
-			mouse_cursor_y += input.facing_delta.pitch * 500.f;
+			/* Scale mouse delta to cursor movement (inverted: mouse deltas are opposite of stick) */
+			mouse_cursor_x -= input.facing_delta.yaw * 500.f;
+			mouse_cursor_y -= input.facing_delta.pitch * 500.f;
 			/* Update globals for HUD reticle */
 			topdown_cursor_x = mouse_cursor_x;
 			topdown_cursor_y = mouse_cursor_y;
