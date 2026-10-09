@@ -819,9 +819,9 @@ static void handle_one_player_input(
 		/* Right stick uses raw gamepad, so facing_delta is mouse-only */
 		if (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f)
 		{
-			/* Scale mouse delta to cursor movement (increased sensitivity) */
-			mouse_cursor_x += input.facing_delta.yaw * 5000.f;
-			mouse_cursor_y += input.facing_delta.pitch * 5000.f;
+			/* Scale mouse delta to cursor movement */
+			mouse_cursor_x += input.facing_delta.yaw * 500.f;
+			mouse_cursor_y += input.facing_delta.pitch * 500.f;
 			/* Clamp to reasonable range */
 			if (mouse_cursor_x > 1.f) mouse_cursor_x = 1.f;
 			if (mouse_cursor_x < -1.f) mouse_cursor_x = -1.f;
