@@ -813,14 +813,47 @@ static void temporary_hud_draw_reticle(
 	long next_point_index;
 	long line_count;
 	real_point3d *point;
+	/* Top-down lock-on: offset reticle to target position */
+	real reticle_offset_x = 0.f;
+	real reticle_offset_y = 0.f;
+	{
+		extern boolean topdown_mode_enabled;
+		extern long topdown_lock_target_index;
+		if (topdown_mode_enabled && topdown_lock_target_index != NONE)
+		{
+			struct unit_datum *tunit;
+			tunit = unit_get(topdown_lock_target_index);
+			if (tunit && tunit->health > 0.f)
+			{
+				real_point3d world_pos;
+				real_point3d view_pos;
+				world_pos = tunit->object.position;
+				world_pos.z += 0.5f;
+				matrix4x3_inverse_transform_point(&render.frustum.view_to_world, &world_pos, &view_pos);
+				reticle_offset_x = view_pos.x;
+				reticle_offset_y = view_pos.y;
+			}
+			else
+			{
+				/* No valid target: hide reticle in top-down mode */
+				if (topdown_mode_enabled)
+					return;
+			}
+		}
+		else if (topdown_mode_enabled)
+		{
+			/* Top-down with no lock: hide center reticle */
+			return;
+		}
+	}
 
 	angle = 0.0f;
 	for (point_index = 0; point_index < NUMBER_OF_TEMPORARY_HUD_RETICLE_POINTS; point_index++)
 	{
 		set_real_point3d(
 			&points[point_index],
-			cosine(angle) * radius,
-			sine(angle) * radius,
+			reticle_offset_x + cosine(angle) * radius,
+			reticle_offset_y + sine(angle) * radius,
 			-0.0625f);
 		matrix4x3_transform_point(
 			&render.frustum.view_to_world,
