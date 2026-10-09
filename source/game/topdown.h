@@ -35,6 +35,8 @@ extern boolean topdown_mode_enabled;
 extern real topdown_cursor_x;
 extern real topdown_cursor_y;
 extern boolean topdown_cursor_active;
+/* Lock-on target for HUD reticle (Phase 4) */
+extern long topdown_lock_target_index;
 
 /* ---------- functions */
 
