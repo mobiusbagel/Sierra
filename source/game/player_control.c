@@ -788,29 +788,56 @@ static void handle_one_player_input(
 	player->control_flags = input.unit_control_flags;
 	player->throttle = input.throttle;
 
-	/* Phase 3b DEBUG: Print facing_delta (right stick) values */
-	if (topdown_mode_enabled && (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f))
+	/* Phase 3a/3b: Top-down twin-stick controls.
+	   Left stick (throttle): movement, screen-relative.
+	     input.throttle.i: UP=+1, DOWN=-1; input.throttle.j: LEFT=+1, RIGHT=-1 (inverted)
+	   Right stick (facing_delta): aiming, absolute direction.
+	     yaw: LEFT=+0.052, RIGHT=-0.052 (inverted); pitch: UP=+0.009, DOWN=-0.009
+	   Priority: Right stick (aim) overrides left stick (movement) for facing.
+	   When right stick idle, face movement direction (Phase 3a behavior). */
+	if (topdown_mode_enabled)
 	{
-		console_printf(TRUE, "STICK DEBUG: yaw=%.3f pitch=%.3f", input.facing_delta.yaw, input.facing_delta.pitch);
-	}
+		boolean right_stick_active = (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f);
+		boolean left_stick_active = (input.throttle.i != 0.f || input.throttle.j != 0.f);
 
-	/* Phase 3a: Top-down movement - screen-relative.
-	   Empirical mapping (from Kris testing 2026-10-09):
-	   - input.throttle.i: UP=+1, DOWN=-1; input.throttle.j: LEFT=+1, RIGHT=-1 (inverted)
-	   - player->throttle is FACING-RELATIVE: i=forward, j=strafe
-	   - arctangent(x,y) returns yaw of vector (y,x) [0=north, clockwise]
-	   Strategy: Compute desired world dir (X=-j, Y=i), set facing to it via
-	   yaw=arctangent(Y,X), then set throttle to (magnitude, 0) = "move forward". */
-	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
-	{
-		real world_x = -input.throttle.j;
-		real world_y = input.throttle.i;
-		real magnitude = sqrt(world_x * world_x + world_y * world_y);
-		/* Facing: correct with arctangent(world_y, world_x) */
-		player->desired_angles.yaw = arctangent(world_y, world_x);
-		/* Movement: facing-relative, move forward with input magnitude */
-		player->throttle.i = magnitude;
-		player->throttle.j = 0.f;
+		if (right_stick_active)
+		{
+			/* Phase 3b: Right stick aiming - absolute direction */
+			real stick_x = -input.facing_delta.yaw;   /* RIGHT(-)->east(+X) */
+			real stick_y = input.facing_delta.pitch;    /* UP(+)->north(+Y) */
+			player->desired_angles.yaw = arctangent(stick_y, stick_x);
+			/* Movement still from left stick (enables strafing) */
+			if (left_stick_active)
+			{
+				real world_x = -input.throttle.j;
+				real world_y = input.throttle.i;
+				real magnitude = sqrt(world_x * world_x + world_y * world_y);
+				/* Move relative to FACING (which is now aim direction) */
+				/* Convert world dir to facing-relative: rotate by -yaw */
+				real yaw = player->desired_angles.yaw;
+				real cos_y = cosine(yaw);
+				real sin_y = sine(yaw);
+				player->throttle.i = world_x * cos_y + world_y * sin_y;
+				player->throttle.j = -world_x * sin_y + world_y * cos_y;
+				/* Clamp magnitude to 1.0 */
+				real m = sqrt(player->throttle.i * player->throttle.i + player->throttle.j * player->throttle.j);
+				if (m > 1.f)
+				{
+					player->throttle.i /= m;
+					player->throttle.j /= m;
+				}
+			}
+		}
+		else if (left_stick_active)
+		{
+			/* Phase 3a: No aim input, face movement direction */
+			real world_x = -input.throttle.j;
+			real world_y = input.throttle.i;
+			real magnitude = sqrt(world_x * world_x + world_y * world_y);
+			player->desired_angles.yaw = arctangent(world_y, world_x);
+			player->throttle.i = magnitude;
+			player->throttle.j = 0.f;
+		}
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
