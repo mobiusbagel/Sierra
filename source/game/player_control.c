@@ -384,6 +384,9 @@ boolean controls_swapped = TRUE;
 
 /* Top-down mode runtime toggle. Default ON. See topdown.h. */
 boolean topdown_mode_enabled = FALSE;
+real topdown_cursor_x = 0.f;
+real topdown_cursor_y = 0.f;
+boolean topdown_cursor_active = FALSE;
 
 void topdown_mode_set(boolean enabled)
 {
@@ -822,6 +825,10 @@ static void handle_one_player_input(
 			/* Scale mouse delta to cursor movement */
 			mouse_cursor_x += input.facing_delta.yaw * 500.f;
 			mouse_cursor_y += input.facing_delta.pitch * 500.f;
+			/* Update globals for HUD reticle */
+			topdown_cursor_x = mouse_cursor_x;
+			topdown_cursor_y = mouse_cursor_y;
+			topdown_cursor_active = TRUE;
 			/* Clamp to reasonable range */
 			if (mouse_cursor_x > 1.f) mouse_cursor_x = 1.f;
 			if (mouse_cursor_x < -1.f) mouse_cursor_x = -1.f;
