@@ -867,6 +867,37 @@ static void handle_one_player_input(
 				}
 			}
 		}
+		else if (mouse_active)
+		{
+			/* Phase 3c: Mouse aiming - face virtual cursor direction */
+			/* Cursor (x,y) is offset from screen center; compute world direction */
+			/* Screen X (right) -> world east (+X); Screen Y (up) -> world north (+Y) */
+			/* Note: mouse_cursor_y is pitch-based; up on screen should be north */
+			real aim_x = mouse_cursor_x;
+			real aim_y = mouse_cursor_y;
+			/* Only update facing if cursor is meaningfully off-center */
+			if (aim_x != 0.f || aim_y != 0.f)
+			{
+				player->desired_angles.yaw = arctangent(aim_y, aim_x);
+			}
+			/* Movement from left stick/WASD, converted to facing-relative for strafing */
+			if (left_stick_active)
+			{
+				real world_x = -input.throttle.j;
+				real world_y = input.throttle.i;
+				real yaw = player->desired_angles.yaw;
+				real cos_y = cosine(yaw);
+				real sin_y = sine(yaw);
+				player->throttle.i = world_x * cos_y + world_y * sin_y;
+				player->throttle.j = -world_x * sin_y + world_y * cos_y;
+				real m = sqrt(player->throttle.i * player->throttle.i + player->throttle.j * player->throttle.j);
+				if (m > 1.f)
+				{
+					player->throttle.i /= m;
+					player->throttle.j /= m;
+				}
+			}
+		}
 		else if (left_stick_active)
 		{
 			/* Phase 3a: No aim input, face movement direction */
