@@ -47,6 +47,7 @@ symbols in this file:
 #include "static_camera.h"
 
 #include "game/game_globals.h"
+#include "game/topdown.h"
 #include "game/players.h"
 #include "objects/objects.h"
 #include "scenario/scenario.h"
@@ -202,6 +203,33 @@ void following_camera_update(
 	player_control_get_unit_camera_info(controls->local_player_index, &camera_info);
 	command = &result->command;
 
+	/* Top-down camera (Phase 2): Proper implementation based on reverse-engineering.
+	   Uses camera_info.position (auto-handles player vs vehicle for all types).
+	   Bypasses the track spline; uses fixed offset.
+	   Observer handles wall/ceiling avoidance automatically via penetration check.
+	   See Top-Down Camera Spec artifact for design rationale. */
+	if (topdown_mode_enabled && camera_info.unit_index != NONE && camera_info.unit_index >= 0)
+	{
+		real tilt_rad = DEGREES_TO_RADIANS(TOPDOWN_CAMERA_TILT_DEGREES);
+		/* Fixed forward: 35° tilt from vertical, looking down */
+		command->forward.i = 0.0f;
+		command->forward.j = sine(tilt_rad);
+		command->forward.k = -cosine(tilt_rad);
+		/* Focus on player/vehicle position (camera_info auto-resolves) */
+		command->position = camera_info.position;
+		/* No offset; observer computes position = focus - forward * depth */
+		command->offset.i = 0.0f;
+		command->offset.j = 0.0f;
+		command->offset.k = 0.0f;
+		/* Depth = 12.207u; observer penetration check handles ceilings */
+		command->depth = TOPDOWN_CAMERA_FOCUS_DISTANCE;
+		command->field_of_view = DEGREES_TO_RADIANS(TOPDOWN_CAMERA_FOV_DEGREES);
+		command->timer = 0.f;
+		command->flags = 0;
+		SET_FLAG(command->flags, 0, TRUE);
+		goto topdown_done;
+	}
+
 	command->position = camera_info.position;
 	command->timer = 0.f;
 	command->flags = 0;
@@ -277,6 +305,7 @@ void following_camera_update(
 		SET_FLAG(command->flags, 0, TRUE);
 	}
 
+topdown_done:
 	observer_up_from_forward(&command->forward, &command->up);
 
 	match_vassert(

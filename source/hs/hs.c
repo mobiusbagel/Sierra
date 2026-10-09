@@ -2780,6 +2780,7 @@ symbols in this file:
 #include "camera/director.h"
 #include "cache/sound_cache.h"
 #include "hs.h"
+#include "game/topdown.h"
 #include "hs_library_external.h"
 #include "hs_library_internal.h"
 #include "object_lists.h"
@@ -4156,6 +4157,10 @@ static void cheat_all_vehicles_evaluate(
 	long thread_index,
 	boolean initialize);
 static void cheat_all_weapons_evaluate(
+	short function_index,
+	long thread_index,
+	boolean initialize);
+static void topdown_mode_evaluate(
 	short function_index,
 	long thread_index,
 	boolean initialize);
@@ -7731,6 +7736,18 @@ static struct hs_function_definition const cheat_all_weapons_definition=
 	hs_macro_function_parse,
 	cheat_all_weapons_evaluate,
 	"drops all weapons near player",
+	NULL,
+	0,
+};
+
+static struct hs_function_definition const topdown_mode_definition=
+{
+	_hs_type_void,
+	1,
+	"topdown_mode",
+	hs_macro_function_parse,
+	topdown_mode_evaluate,
+	"toggles top-down camera mode (true=on, false=off)",
 	NULL,
 	0,
 };
@@ -11899,6 +11916,7 @@ struct hs_function_table_storage hs_function_table=
 		&breakable_surfaces_reset_definition,
 		&cheat_all_powerups_definition,
 		&cheat_all_weapons_definition,
+		&topdown_mode_definition,
 		&cheat_all_vehicles_definition,
 		&cheat_teleport_to_camera_definition,
 		&cheat_active_camouflage_definition,
@@ -14146,6 +14164,7 @@ HS_EVALUATE_NO_ARGUMENTS(object_pvs_clear_evaluate, object_pvs_clear)
 HS_EVALUATE_NO_ARGUMENTS(breakable_surfaces_reset_evaluate, breakable_surfaces_reset)
 HS_EVALUATE_NO_ARGUMENTS(cheat_all_powerups_evaluate, cheat_all_powerups)
 HS_EVALUATE_NO_ARGUMENTS(cheat_all_weapons_evaluate, cheat_all_weapons)
+HS_EVALUATE_VOID_BOOLEAN(topdown_mode_evaluate, topdown_mode_set)
 HS_EVALUATE_NO_ARGUMENTS(cheat_all_vehicles_evaluate, cheat_all_vehicles)
 HS_EVALUATE_NO_ARGUMENTS(cheat_teleport_to_camera_evaluate, cheat_teleport_to_camera)
 HS_EVALUATE_NO_ARGUMENTS(cheat_active_camouflage_evaluate, cheat_active_camouflage)

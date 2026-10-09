@@ -118,6 +118,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "director.h"
+#include "game/topdown.h"
 
 #include "camera_scripting.h"
 #include "dead_camera.h"
@@ -330,6 +331,15 @@ short director_desired_perspective(
 	director_perspective *perspective)
 {
 	short following = FALSE;
+
+	/* Top-down mode: Force following camera for consistent top-down view.
+	   The following camera's top-down implementation handles both on-foot
+	   and vehicle correctly via camera_info resolution. */
+	if (topdown_mode_enabled && unit_index != NONE && unit_index >= 0)
+	{
+		*perspective = 2;
+		return TRUE;
+	}
 
 	*perspective = 0;
 	if (unit_index != NONE)

@@ -183,6 +183,7 @@ symbols in this file:
 #include "cseries.h"
 #define limit2d limit2d_inline
 #include "game/game.h"
+#include "game/topdown.h"
 #undef limit2d
 #include "game/player_control_runtime.h"
 #include "players.h"
@@ -379,6 +380,14 @@ static boolean player_control_camera_control_is_active(
 boolean player_autoaim_flag = TRUE;
 boolean player_magnetism_flag = TRUE;
 boolean controls_swapped = TRUE;
+
+/* Top-down mode runtime toggle. Default ON. See topdown.h. */
+boolean topdown_mode_enabled = TRUE;
+
+void topdown_mode_set(boolean enabled)
+{
+	topdown_mode_enabled = enabled;
+}
 real player_look_zoomed_scale = 0.5f;
 
 static struct profile_section player_control_update_section = {"player_control_update", NONE, TRUE};
