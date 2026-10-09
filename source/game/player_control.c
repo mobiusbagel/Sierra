@@ -815,19 +815,13 @@ static void handle_one_player_input(
 		static int mouse_idle_frames = 0;
 		boolean mouse_active = FALSE;
 
-		/* DEBUG: Check if mouse delta is non-zero */
-		if (topdown_mode_enabled && (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f))
-		{
-			console_printf(TRUE, "MOUSE DELTA: yaw=%.4f pitch=%.4f", input.facing_delta.yaw, input.facing_delta.pitch);
-		}
-
 		/* Update virtual cursor from mouse delta (input.facing_delta is mouse-only now) */
 		/* Right stick uses raw gamepad, so facing_delta is mouse-only */
 		if (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f)
 		{
-			/* Scale mouse delta to cursor movement (tune sensitivity) */
-			mouse_cursor_x += input.facing_delta.yaw * 500.f;
-			mouse_cursor_y += input.facing_delta.pitch * 500.f;
+			/* Scale mouse delta to cursor movement (increased sensitivity) */
+			mouse_cursor_x += input.facing_delta.yaw * 5000.f;
+			mouse_cursor_y += input.facing_delta.pitch * 5000.f;
 			/* Clamp to reasonable range */
 			if (mouse_cursor_x > 1.f) mouse_cursor_x = 1.f;
 			if (mouse_cursor_x < -1.f) mouse_cursor_x = -1.f;
