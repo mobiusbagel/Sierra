@@ -788,6 +788,12 @@ static void handle_one_player_input(
 	player->control_flags = input.unit_control_flags;
 	player->throttle = input.throttle;
 
+	/* Phase 3b DEBUG: Print facing_delta (right stick) values */
+	if (topdown_mode_enabled && (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f))
+	{
+		console_printf(TRUE, "STICK DEBUG: yaw=%.3f pitch=%.3f", input.facing_delta.yaw, input.facing_delta.pitch);
+	}
+
 	/* Phase 3a: Top-down movement - screen-relative.
 	   Empirical mapping (from Kris testing 2026-10-09):
 	   - input.throttle.i: UP=+1, DOWN=-1; input.throttle.j: LEFT=+1, RIGHT=-1 (inverted)
