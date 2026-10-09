@@ -814,8 +814,21 @@ static void handle_one_player_input(
 		short ls_x = 0, ls_y = 0;
 		if (gamepad)
 		{
-			ls_x = gamepad->sticks[_gamepad_stick_left].x;
-			ls_y = gamepad->sticks[_gamepad_stick_left].y;
+			/* If D-pad is pressed, ignore stick for movement (D-pad is for weapons) */
+			boolean dpad_active;
+			dpad_active = gamepad->buttons[_gamepad_binary_button_dpad_up] ||
+				gamepad->buttons[_gamepad_binary_button_dpad_down] ||
+				gamepad->buttons[_gamepad_binary_button_dpad_left] ||
+				gamepad->buttons[_gamepad_binary_button_dpad_right];
+			if (!dpad_active)
+			{
+				ls_x = gamepad->sticks[_gamepad_stick_left].x;
+				ls_y = gamepad->sticks[_gamepad_stick_left].y;
+			}
+			else
+			{
+				console_printf(TRUE, "DPAD: Ignoring stick for movement");
+			}
 		}
 		boolean left_stick_active = (ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000) ||
 			(input.throttle.i != 0.f || input.throttle.j != 0.f);
