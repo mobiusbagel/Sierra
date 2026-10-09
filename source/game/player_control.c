@@ -800,6 +800,10 @@ static void handle_one_player_input(
 	   Priority: Right stick > Mouse > Movement direction for facing. */
 	if (topdown_mode_enabled)
 	{
+		/* Block D-pad: zero input.throttle so stock code can't use it for movement */
+		/* (D-pad sets input.throttle, we only want left stick for movement) */
+		input.throttle.i = 0.f;
+		input.throttle.j = 0.f;
 		/* Get raw right stick position for smooth 360 aiming */
 		const struct gamepad_state *gamepad = input_get_gamepad_state(local_player_index);
 		short rs_x = 0, rs_y = 0;
