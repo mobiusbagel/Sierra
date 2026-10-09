@@ -933,7 +933,7 @@ static void handle_one_player_input(
 				}
 			}
 		}
-		else if (mouse_active)
+		else if (FALSE && mouse_active) /* m+kb removed: mouse aiming disabled for now */
 		{
 			/* Phase 3c: Mouse aiming - face mouse movement direction directly */
 			/* Use delta (not accumulated cursor) for exact cardinals, no drift */
