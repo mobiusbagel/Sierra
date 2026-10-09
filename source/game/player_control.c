@@ -886,7 +886,7 @@ static void handle_one_player_input(
 			if (aim_x != 0.f || aim_y != 0.f)
 			{
 				/* Mouse Y is inverted vs stick: negate to get correct facing */
-				player->desired_angles.yaw = arctangent(-aim_y, aim_x);
+				player->desired_angles.yaw = arctangent(-aim_y, -aim_x);
 			}
 			/* Movement from left stick/WASD, converted to facing-relative for strafing */
 			if (left_stick_active)
