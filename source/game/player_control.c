@@ -788,12 +788,12 @@ static void handle_one_player_input(
 	player->control_flags = input.unit_control_flags;
 	player->throttle = input.throttle;
 
-	/* Phase 3a/3b: Top-down twin-stick controls.
-	   Left stick (throttle): movement, screen-relative.
+	/* Phase 3a/3b/3c: Top-down controls.
+	   Left stick / WASD (throttle): movement, screen-relative.
 	     input.throttle.i: UP=+1, DOWN=-1; input.throttle.j: LEFT=+1, RIGHT=-1 (inverted)
 	   Right stick (raw gamepad): aiming, absolute 360-degree direction.
-	   Priority: Right stick (aim) overrides left stick (movement) for facing.
-	   When right stick idle, face movement direction (Phase 3a behavior). */
+	   Mouse: aiming via virtual cursor (accumulated deltas).
+	   Priority: Right stick > Mouse > Movement direction for facing. */
 	if (topdown_mode_enabled)
 	{
 		/* Get raw right stick position for smooth 360 aiming */
@@ -807,6 +807,36 @@ static void handle_one_player_input(
 		/* Deadzone: ignore small deflections */
 		boolean right_stick_active = (rs_x < -8000 || rs_x > 8000 || rs_y < -8000 || rs_y > 8000);
 		boolean left_stick_active = (input.throttle.i != 0.f || input.throttle.j != 0.f);
+		/* Mouse active if facing_delta non-zero (not from stick, since we use raw) */
+		/* Note: facing_delta is inhibited for mouse in topdown, so we check raw mouse */
+		/* For now, use a simple heuristic: if right stick idle and mouse moved recently */
+		static real mouse_cursor_x = 0.f;
+		static real mouse_cursor_y = 0.f;
+		static int mouse_idle_frames = 0;
+		boolean mouse_active = FALSE;
+
+		/* Update virtual cursor from mouse delta (input.facing_delta is mouse-only now) */
+		/* Right stick uses raw gamepad, so facing_delta is mouse-only */
+		if (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f)
+		{
+			/* Scale mouse delta to cursor movement (tune sensitivity) */
+			mouse_cursor_x += input.facing_delta.yaw * 500.f;
+			mouse_cursor_y += input.facing_delta.pitch * 500.f;
+			/* Clamp to reasonable range */
+			if (mouse_cursor_x > 1.f) mouse_cursor_x = 1.f;
+			if (mouse_cursor_x < -1.f) mouse_cursor_x = -1.f;
+			if (mouse_cursor_y > 1.f) mouse_cursor_y = 1.f;
+			if (mouse_cursor_y < -1.f) mouse_cursor_y = -1.f;
+			mouse_idle_frames = 0;
+			mouse_active = TRUE;
+		}
+		else
+		{
+			mouse_idle_frames++;
+			/* Mouse considered active for 60 frames after last movement */
+			if (mouse_idle_frames < 60 && (mouse_cursor_x != 0.f || mouse_cursor_y != 0.f))
+				mouse_active = TRUE;
+		}
 
 		if (right_stick_active)
 		{
