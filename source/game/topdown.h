@@ -31,6 +31,10 @@ Design: See Top-Down Camera Spec artifact for full rationale.
    disabled and the game runs as stock Halo CE. Controlled via console
    command (topdown_mode). Default: TRUE. */
 extern boolean topdown_mode_enabled;
+/* Virtual mouse cursor for topdown aiming (-1 to +1, 0=center) */
+extern real topdown_cursor_x;
+extern real topdown_cursor_y;
+extern boolean topdown_cursor_active;
 
 /* ---------- functions */
 
