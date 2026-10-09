@@ -1355,10 +1355,10 @@ static void temporary_hud_draw(
 			extern long topdown_lock_target_index;
 			if (topdown_mode_enabled && topdown_lock_target_index != NONE)
 			{
-				struct object_datum *target_obj = object_get(topdown_lock_target_index);
-				if (target_obj)
+				struct unit_datum *target_unit = unit_get(topdown_lock_target_index);
+				if (target_unit)
 				{
-					real_point3d tpos = target_obj->position;
+					real_point3d tpos = target_unit->object.position;
 					real_point3d p0, p1;
 					real s = 0.3f;
 					tpos.z += 0.5f;
