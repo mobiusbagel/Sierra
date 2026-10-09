@@ -789,22 +789,21 @@ static void handle_one_player_input(
 	player->throttle = input.throttle;
 
 	/* Phase 3a: Top-down movement - screen-relative.
-	   Debug revealed: input.throttle.i = forward (UP=+1, DOWN=-1)
-	                   input.throttle.j = strafe, INVERTED (LEFT=+1, RIGHT=-1)
-	   Desired world dir: X (east) = -j, Y (north) = i
-	   Facing is correct via yaw = atan2(world_x, world_y).
-	   Movement was 90deg off: throttle.i (forward) doesn't align with yaw.
-	   Trying throttle.j (strafe) instead. */
+	   Empirical mapping (from testing):
+	   - input.throttle.i: UP=+1, DOWN=-1 (forward axis)
+	   - input.throttle.j: LEFT=+1, RIGHT=-1 (strafe, inverted)
+	   - player->throttle is WORLD-ALIGNED: i=X(east), j=Y(north)
+	   - arctangent(x,y) returns yaw of vector (y,x) [0=north, cw]
+	   Desired world: X = -j_input, Y = i_input */
 	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
 	{
-		real world_x = -input.throttle.j;
-		real world_y = input.throttle.i;
-		real magnitude = sqrt(world_x * world_x + world_y * world_y);
-		/* Face the desired world direction (this part is correct) */
-		player->desired_angles.yaw = arctangent(world_x, world_y);
-		/* Try strafe instead of forward for movement */
-		player->throttle.i = 0.f;
-		player->throttle.j = magnitude;
+		real world_x = -input.throttle.j;  /* LEFT(+1)->west(-X), RIGHT(-1)->east(+X) */
+		real world_y = input.throttle.i;   /* UP(+1)->north(+Y), DOWN(-1)->south(-Y) */
+		/* Facing: arctangent(y,x) gives yaw of (x,y) vector */
+		player->desired_angles.yaw = arctangent(world_y, world_x);
+		/* Movement: throttle is world-aligned, set directly */
+		player->throttle.i = world_x;
+		player->throttle.j = world_y;
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
