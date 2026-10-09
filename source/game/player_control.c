@@ -828,10 +828,66 @@ static void handle_one_player_input(
 		if (right_stick_active)
 		{
 			/* Phase 3b: Right stick aiming - absolute direction, smooth 360 */
-			/* gamepad Y: up is negative? Test and adjust. Assume standard: */
-			real stick_x = (real)rs_x / 32767.f;   /* -1 to +1 */
-			real stick_y = (real)rs_y / 32767.f;   /* Up=+1 (north), no invert needed */
+			real stick_x;
+			real stick_y;
+			/* Phase 4: Lock-on state (static persists across frames) */
+			static long lock_target_index = NONE;
+			static real lock_target_yaw = 0.f;
+			stick_x = (real)rs_x / 32767.f;
+			stick_y = (real)rs_y / 32767.f;
 			player->desired_angles.yaw = arctangent(stick_y, stick_x);
+			/* Phase 4: Soft lock-on (12-degree cone when aiming) */
+			{
+				real yaw;
+				long unit_index;
+				yaw = player->desired_angles.yaw;
+				unit_index = player->unit_index;
+				if (unit_index != NONE)
+				{
+					real_point3d pos;
+					real_vector3d dir;
+					struct aim_assist_parameters ap;
+					struct aim_assist_target tgt;
+					struct player_datum *pdat;
+					short team;
+					object_get_position(unit_index, &pos);
+					dir.i = sine(yaw);
+					dir.j = cosine(yaw);
+					dir.k = 0.f;
+					ap.magnetism_angle = 0.20944f; /* 12 degrees in radians */
+					ap.magnetism_distance = 30.f;
+					ap.autoaim_angle = 0.f;
+					ap.autoaim_distance = 0.f;
+					ap.deviation_angle = 0.f;
+					pdat = player_get(local_player_get_player_index(local_player_index));
+					team = pdat ? pdat->team_index : 0;
+					if (aim_assist(&ap, &pos, &dir, unit_index, team, &tgt))
+					{
+						/* Soft lock: pull 35% toward target (friction, not snap) */
+						real tyaw;
+						real diff;
+						tyaw = arctangent(tgt.vector.j, tgt.vector.i);
+						diff = tyaw - yaw;
+						while (diff > 3.14159265f) diff -= 6.2831853f;
+						while (diff < -3.14159265f) diff += 6.2831853f;
+						/* Break if aim >25 degrees away from target */
+						if (diff > 0.43633f || diff < -0.43633f)
+						{
+							lock_target_index = NONE;
+						}
+						else
+						{
+							lock_target_index = tgt.object_index;
+							lock_target_yaw = tyaw;
+							player->desired_angles.yaw = yaw + diff * 0.35f;
+						}
+					}
+					else
+					{
+						lock_target_index = NONE;
+					}
+				}
+			}
 			/* Movement still from left stick (enables strafing) */
 			if (left_stick_active)
 			{
