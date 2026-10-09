@@ -810,7 +810,14 @@ static void handle_one_player_input(
 		}
 		/* Deadzone: ignore small deflections */
 		boolean right_stick_active = (rs_x < -8000 || rs_x > 8000 || rs_y < -8000 || rs_y > 8000);
-		boolean left_stick_active = (input.throttle.i != 0.f || input.throttle.j != 0.f);
+		/* Use left stick directly (not input.throttle) to avoid D-pad interference */
+		short ls_x = 0, ls_y = 0;
+		if (gamepad)
+		{
+			ls_x = gamepad->sticks[_gamepad_stick_left].x;
+			ls_y = gamepad->sticks[_gamepad_stick_left].y;
+		}
+		boolean left_stick_active = (ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000);
 		/* Mouse active if delta exceeds deadzone (filters jitter/noise).
 		   Use delta DIRECTION directly for facing (no accumulation = no drift). */
 		boolean mouse_active = (fabs(input.facing_delta.yaw) > 0.001f || fabs(input.facing_delta.pitch) > 0.001f);
@@ -895,8 +902,8 @@ static void handle_one_player_input(
 			/* Movement still from left stick (enables strafing) */
 			if (left_stick_active)
 			{
-				real world_x = -input.throttle.j;
-				real world_y = input.throttle.i;
+				real world_x = (real)ls_x / 32767.f;
+				real world_y = (real)ls_y / 32767.f;
 				real magnitude = sqrt(world_x * world_x + world_y * world_y);
 				/* Move relative to FACING (which is now aim direction) */
 				/* Convert world dir to facing-relative: rotate by -yaw */
@@ -925,8 +932,8 @@ static void handle_one_player_input(
 			/* Movement from left stick/WASD, converted to facing-relative for strafing */
 			if (left_stick_active)
 			{
-				real world_x = -input.throttle.j;
-				real world_y = input.throttle.i;
+				real world_x = (real)ls_x / 32767.f;
+				real world_y = (real)ls_y / 32767.f;
 				real yaw = player->desired_angles.yaw;
 				real cos_y = cosine(yaw);
 				real sin_y = sine(yaw);
