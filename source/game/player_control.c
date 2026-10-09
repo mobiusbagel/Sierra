@@ -965,8 +965,12 @@ static void handle_one_player_input(
 				real tyaw;
 				real diff;
 			/* Phase 3a: No aim input, face movement direction */
-			world_x = -input.throttle.j;
-			world_y = input.throttle.i;
+			/* (world_x/world_y already set from left stick above, else use throttle for WASD) */
+			if (!(ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000))
+			{
+				world_x = -input.throttle.j;
+				world_y = input.throttle.i;
+			}
 			magnitude = sqrt(world_x * world_x + world_y * world_y);
 			base_yaw = arctangent(world_y, world_x);
 			player->desired_angles.yaw = base_yaw;
