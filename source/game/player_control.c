@@ -784,6 +784,25 @@ static void handle_one_player_input(
 
 	player->control_flags = input.unit_control_flags;
 	player->throttle = input.throttle;
+
+	/* Phase 3a: Top-down movement - convert facing-relative throttle to world-aligned.
+	   In top-down mode, left stick / WASD should move screen-relative (W = north),
+	   not relative to character facing. */
+	if (topdown_mode_enabled && (player->throttle.i != 0.f || player->throttle.j != 0.f))
+	{
+		real yaw = player->desired_angles.yaw;
+		real cos_yaw = cosine(yaw);
+		real sin_yaw = sine(yaw);
+		real fwd = player->throttle.i;
+		real str = player->throttle.j;
+		/* Rotate from facing-relative to world-aligned:
+		   world_x = fwd * cos(yaw) - str * sin(yaw)
+		   world_y = fwd * sin(yaw) + str * cos(yaw) */
+		player->throttle.i = fwd * cos_yaw - str * sin_yaw;
+		player->throttle.j = fwd * sin_yaw + str * cos_yaw;
+		/* Character faces movement direction (Phase 3a simple rule) */
+		player->desired_angles.yaw = arctangent(player->throttle.j, player->throttle.i);
+	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
 		"c:\\halo\\SOURCE\\game\\player_control.c",
