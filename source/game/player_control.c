@@ -813,7 +813,7 @@ static void handle_one_player_input(
 			/* Phase 3b: Right stick aiming - absolute direction, smooth 360 */
 			/* gamepad Y: up is negative? Test and adjust. Assume standard: */
 			real stick_x = (real)rs_x / 32767.f;   /* -1 to +1 */
-			real stick_y = -(real)rs_y / 32767.f;  /* Invert Y: up=+1 (north) */
+			real stick_y = (real)rs_y / 32767.f;   /* Up=+1 (north), no invert needed */
 			player->desired_angles.yaw = arctangent(stick_y, stick_x);
 			/* Movement still from left stick (enables strafing) */
 			if (left_stick_active)
