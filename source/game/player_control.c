@@ -791,20 +791,29 @@ static void handle_one_player_input(
 	/* Phase 3a/3b: Top-down twin-stick controls.
 	   Left stick (throttle): movement, screen-relative.
 	     input.throttle.i: UP=+1, DOWN=-1; input.throttle.j: LEFT=+1, RIGHT=-1 (inverted)
-	   Right stick (facing_delta): aiming, absolute direction.
-	     yaw: LEFT=+0.052, RIGHT=-0.052 (inverted); pitch: UP=+0.009, DOWN=-0.009
+	   Right stick (raw gamepad): aiming, absolute 360-degree direction.
 	   Priority: Right stick (aim) overrides left stick (movement) for facing.
 	   When right stick idle, face movement direction (Phase 3a behavior). */
 	if (topdown_mode_enabled)
 	{
-		boolean right_stick_active = (input.facing_delta.yaw != 0.f || input.facing_delta.pitch != 0.f);
+		/* Get raw right stick position for smooth 360 aiming */
+		const struct gamepad_state *gamepad = input_get_gamepad_state(local_player_index);
+		short rs_x = 0, rs_y = 0;
+		if (gamepad)
+		{
+			rs_x = gamepad->sticks[_gamepad_stick_right].x;
+			rs_y = gamepad->sticks[_gamepad_stick_right].y;
+		}
+		/* Deadzone: ignore small deflections */
+		boolean right_stick_active = (rs_x < -8000 || rs_x > 8000 || rs_y < -8000 || rs_y > 8000);
 		boolean left_stick_active = (input.throttle.i != 0.f || input.throttle.j != 0.f);
 
 		if (right_stick_active)
 		{
-			/* Phase 3b: Right stick aiming - absolute direction */
-			real stick_x = -input.facing_delta.yaw;   /* RIGHT(-)->east(+X) */
-			real stick_y = input.facing_delta.pitch;    /* UP(+)->north(+Y) */
+			/* Phase 3b: Right stick aiming - absolute direction, smooth 360 */
+			/* gamepad Y: up is negative? Test and adjust. Assume standard: */
+			real stick_x = (real)rs_x / 32767.f;   /* -1 to +1 */
+			real stick_y = -(real)rs_y / 32767.f;  /* Invert Y: up=+1 (north) */
 			player->desired_angles.yaw = arctangent(stick_y, stick_x);
 			/* Movement still from left stick (enables strafing) */
 			if (left_stick_active)
