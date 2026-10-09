@@ -788,19 +788,19 @@ static void handle_one_player_input(
 	player->control_flags = input.unit_control_flags;
 	player->throttle = input.throttle;
 
-	/* Phase 3a: Top-down movement - character faces input direction.
-	   Left stick / WASD: stick up = north (+Y), stick right = east (+X).
-	   Throttle is (i=X, j=Y) in world space. Set yaw to face movement. */
+	/* Phase 3a: Top-down movement - screen-relative.
+	   Debug revealed: throttle.i = forward (UP=+1, DOWN=-1)
+	                   throttle.j = strafe, INVERTED (LEFT=+1, RIGHT=-1)
+	   World mapping: X (east) = -j, Y (north) = i
+	   yaw = atan2(X, Y): 0=north, pi/2=east */
 	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
 	{
-		/* DEBUG: Print raw throttle values to understand axis mapping */
-		console_printf(TRUE, "THROTTLE DEBUG: i=%.2f j=%.2f", input.throttle.i, input.throttle.j);
-		/* Direct mapping: throttle.i = X (east), throttle.j = Y (north)
-		   yaw = atan2(X, Y): 0=north, pi/2=east */
-		player->desired_angles.yaw = arctangent(input.throttle.i, input.throttle.j);
-		/* Override throttle to be world-aligned (not facing-relative) */
-		player->throttle.i = input.throttle.i;
-		player->throttle.j = input.throttle.j;
+		real world_x = -input.throttle.j;  /* Invert strafe: LEFT(+1)->west(-X) */
+		real world_y = input.throttle.i;   /* Forward: UP(+1)->north(+Y) */
+		player->desired_angles.yaw = arctangent(world_x, world_y);
+		/* Set throttle to world-aligned values */
+		player->throttle.i = world_x;
+		player->throttle.j = world_y;
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
