@@ -825,9 +825,6 @@ static void handle_one_player_input(
 			/* Scale mouse delta to cursor movement */
 			mouse_cursor_x += input.facing_delta.yaw * 500.f;
 			mouse_cursor_y += input.facing_delta.pitch * 500.f;
-			/* DEBUG: Show mouse delta and resulting cursor */
-			console_printf(TRUE, "MOUSE: d_yaw=%.4f d_pitch=%.4f -> cursor=(%.2f,%.2f)",
-				input.facing_delta.yaw, input.facing_delta.pitch, mouse_cursor_x, mouse_cursor_y);
 			/* Update globals for HUD reticle */
 			topdown_cursor_x = mouse_cursor_x;
 			topdown_cursor_y = mouse_cursor_y;
@@ -888,7 +885,8 @@ static void handle_one_player_input(
 			/* Only update facing if cursor is meaningfully off-center */
 			if (aim_x != 0.f || aim_y != 0.f)
 			{
-				player->desired_angles.yaw = arctangent(aim_y, aim_x);
+				/* Mouse Y is inverted vs stick: negate to get correct facing */
+				player->desired_angles.yaw = arctangent(-aim_y, aim_x);
 			}
 			/* Movement from left stick/WASD, converted to facing-relative for strafing */
 			if (left_stick_active)
