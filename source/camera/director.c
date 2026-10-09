@@ -334,16 +334,13 @@ short director_desired_perspective(
 
 	/* Top-down mode: Force following camera for consistent top-down view.
 	   The following camera's top-down implementation handles both on-foot
-	   and vehicle correctly via camera_info resolution. */
-	if (topdown_mode_enabled && unit_index != NONE && unit_index >= 0)
+	   and vehicle correctly via camera_info resolution.
+	   Note: We don't validate unit_index here because player_control_get_unit_index()
+	   returns garbage (not NONE) in some cases. The following camera validates properly. */
+	if (topdown_mode_enabled)
 	{
 		*perspective = 2;
 		return TRUE;
-	}
-	/* DEBUG: Print when top-down is enabled but unit is invalid */
-	if (topdown_mode_enabled)
-	{
-		console_printf(TRUE, "TOPDOWN DEBUG: enabled=%d unit_index=%d", topdown_mode_enabled, unit_index);
 	}
 
 	*perspective = 0;
