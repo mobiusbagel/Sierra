@@ -788,15 +788,16 @@ static void handle_one_player_input(
 	player->throttle = input.throttle;
 
 	/* Phase 3a: Top-down movement - character faces input direction.
-	   Left stick / WASD input is interpreted as world-aligned (up=north).
-	   We set facing to match the input direction; Halo's normal movement
-	   then moves the character forward (which is the desired world direction).
-	   No throttle modification = no feedback loop. */
+	   Left stick / WASD: stick up = north (+Y), stick right = east (+X).
+	   Throttle is (i=X, j=Y) in world space. Set yaw to face movement. */
 	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
 	{
-		/* Input: throttle.i = forward, throttle.j = strafe (right positive)
-		   Desired world yaw: 0=north, positive=clockwise toward east */
-		player->desired_angles.yaw = arctangent(input.throttle.j, input.throttle.i);
+		/* Direct mapping: throttle.i = X (east), throttle.j = Y (north)
+		   yaw = atan2(X, Y): 0=north, pi/2=east */
+		player->desired_angles.yaw = arctangent(input.throttle.i, input.throttle.j);
+		/* Override throttle to be world-aligned (not facing-relative) */
+		player->throttle.i = input.throttle.i;
+		player->throttle.j = input.throttle.j;
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
