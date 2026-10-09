@@ -891,6 +891,7 @@ static void handle_one_player_input(
 			player->throttle.j = 0.f;
 			/* Phase 3d: DISABLED - C89 compliance issues */
 			/* TODO: Reimplement with proper C89 declarations */
+		}
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
