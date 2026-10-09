@@ -989,12 +989,9 @@ static void handle_one_player_input(
 				real tyaw;
 				real diff;
 			/* Phase 3a: No aim input, face movement direction */
-			/* (world_x/world_y already set from left stick above, else use throttle for WASD) */
-			if (!(ls_x < -8000 || ls_x > 8000 || ls_y < -8000 || ls_y > 8000))
-			{
-				world_x = -input.throttle.j;
-				world_y = input.throttle.i;
-			}
+			/* Set world_x/world_y from left stick (we're in left_stick_active branch) */
+			world_x = (real)ls_x / 32767.f;
+			world_y = (real)ls_y / 32767.f;
 			/* Guard: Don't compute yaw if no movement (arctangent(0,0) = NaN) */
 			if (world_x == 0.f && world_y == 0.f)
 			{
