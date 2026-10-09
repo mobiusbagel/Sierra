@@ -879,16 +879,8 @@ static void handle_one_player_input(
 						diff = tyaw - yaw;
 						while (diff > 3.14159265f) diff -= 6.2831853f;
 						while (diff < -3.14159265f) diff += 6.2831853f;
-						/* Break if target is dead/gone */
-						{
-							struct unit_datum *tunit;
-							tunit = unit_get(tgt.object_index);
-							if (!tunit || tunit->health <= 0.f)
-							{
-								lock_target_index = NONE;
-								topdown_lock_target_index = NONE;
-							}
-							else if (diff > 0.43633f || diff < -0.43633f)
+						/* Break if aim >25 degrees away from target */
+							if (diff > 0.43633f || diff < -0.43633f)
 							{
 								lock_target_index = NONE;
 								topdown_lock_target_index = NONE;

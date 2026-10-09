@@ -823,7 +823,7 @@ static void temporary_hud_draw_reticle(
 		{
 			struct unit_datum *tunit;
 			tunit = unit_get(topdown_lock_target_index);
-			if (tunit && tunit->health > 0.f)
+			if (tunit)
 			{
 				real_point3d world_pos;
 				real_point3d view_pos;
