@@ -1349,45 +1349,6 @@ static void temporary_hud_draw(
 				? "FULL-SPECTRUM VISION "
 				: "");
 
-		/* Phase 4: Top-down lock-on reticle tracks target */
-		/* Draws circular reticle in horizontal plane at target position */
-		{
-			extern boolean topdown_mode_enabled;
-			extern long topdown_lock_target_index;
-			/* DEBUG: Log when HUD checks lock-on */
-			if (topdown_mode_enabled)
-			{
-				console_printf(TRUE, "HUD: topdown enabled, lock_target=%d", topdown_lock_target_index);
-			}
-			if (topdown_mode_enabled && topdown_lock_target_index != NONE)
-			{
-				struct unit_datum *target_unit;
-				target_unit = unit_get(topdown_lock_target_index);
-				if (target_unit)
-				{
-					real_point3d center;
-					real_point3d pts[17];
-					real radius;
-					long i;
-					real ang;
-					center = target_unit->object.position;
-					center.z += 0.6f;
-					radius = 0.4f;
-					ang = 0.f;
-					for (i = 0; i < 17; i++)
-					{
-						pts[i].x = center.x + cosine(ang) * radius;
-						pts[i].y = center.y + sine(ang) * radius;
-						pts[i].z = center.z;
-						ang += 6.2831853f / 16.f;
-					}
-					for (i = 0; i < 16; i++)
-					{
-						rasterizer_debug_line(&pts[i], &pts[i+1], global_real_argb_red);
-					}
-				}
-			}
-		}
 		temporary_hud_draw_reticle(
 			weapon_definition->weapon.aim_assist_parameters.autoaim_angle /
 				weapon_get_zoom_magnification(
@@ -1492,6 +1453,39 @@ void hud_draw_screen(
 	if (temporary_hud)
 	{
 		temporary_hud_draw();
+	}
+	/* Phase 4: Top-down lock-on reticle (runs regardless of temporary_hud) */
+	{
+		extern boolean topdown_mode_enabled;
+		extern long topdown_lock_target_index;
+		if (topdown_mode_enabled && topdown_lock_target_index != NONE)
+		{
+			struct unit_datum *target_unit;
+			target_unit = unit_get(topdown_lock_target_index);
+			if (target_unit)
+			{
+				real_point3d center;
+				real_point3d pts[17];
+				real radius;
+				long i;
+				real ang;
+				center = target_unit->object.position;
+				center.z += 0.6f;
+				radius = 0.4f;
+				ang = 0.f;
+				for (i = 0; i < 17; i++)
+				{
+					pts[i].x = center.x + cosine(ang) * radius;
+					pts[i].y = center.y + sine(ang) * radius;
+					pts[i].z = center.z;
+					ang += 6.2831853f / 16.f;
+				}
+				for (i = 0; i < 16; i++)
+				{
+					rasterizer_debug_line(&pts[i], &pts[i+1], global_real_argb_red);
+				}
+			}
+		}
 	}
 
 	return;
