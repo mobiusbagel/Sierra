@@ -890,7 +890,6 @@ static void handle_one_player_input(
 			player->throttle.i = magnitude;
 			player->throttle.j = 0.f;
 
-#if 0 /* Phase 3d disabled - needs build fix */
 			/* Phase 3d: Gungeon-style magnetic assist (idle only) */
 			/* Subtle pull toward nearest enemy in narrow cone in front */
 			{
@@ -918,19 +917,21 @@ static void handle_one_player_input(
 					params.deviation_angle = 0.f;
 					struct aim_assist_target target;
 					/* Find best target in front */
-					if (aim_assist(&params, &position, &direction, unit_index, player->team_index, &target))
+					{ struct player_datum *pd = player_get(local_player_get_player_index(local_player_index));
+						short team_idx = pd ? pd->team_index : 0;
+						if (aim_assist(&params, &position, &direction, unit_index, team_idx, &target))
 					{
 						/* Nudge facing 15% toward target (subtle, not snap) */
 						real target_yaw = arctangent(target.vector.j, target.vector.i);
 						real angle_diff = target_yaw - yaw;
 						/* Normalize to [-PI, PI] */
-						while (angle_diff > PI) angle_diff -= TWO_PI;
-						while (angle_diff < -PI) angle_diff += TWO_PI;
+						while (angle_diff > 3.14159265f) angle_diff -= 6.2831853f;
+						while (angle_diff < -3.14159265f) angle_diff += 6.2831853f;
 						player->desired_angles.yaw = yaw + angle_diff * 0.15f;
+						}
 					}
 				}
 			}
-#endif
 		}
 	}
 	player->primary_trigger = input.primary_trigger;
