@@ -14170,6 +14170,7 @@ static void topdown_mode_evaluate(
 	boolean initialize)
 {
 	topdown_mode_enabled = !topdown_mode_enabled;
+	console_printf(FALSE, "topdown_mode is now %s", topdown_mode_enabled ? "ON" : "OFF");
 	hs_return(thread_index, 0);
 	return;
 }
