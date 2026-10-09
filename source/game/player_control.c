@@ -897,6 +897,17 @@ static void handle_one_player_input(
 							topdown_lock_target_index = tgt.object_index;
 							lock_target_yaw = tyaw;
 							player->desired_angles.yaw = yaw + diff * 0.35f;
+					/* Pitch for elevation: aim up/down at target */
+					{
+						real dx_p = tgt.position.x - pos.x;
+						real dy_p = tgt.position.y - pos.y;
+						real dz_p = tgt.position.z - pos.z;
+						real dist2d_p = sqrt(dx_p*dx_p + dy_p*dy_p);
+						if (dist2d_p > 0.1f)
+						{
+							player->desired_angles.pitch = arctangent(dz_p, dist2d_p);
+						}
+					}
 						}
 					}
 					else
