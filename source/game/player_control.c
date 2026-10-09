@@ -184,6 +184,7 @@ symbols in this file:
 #define limit2d limit2d_inline
 #include "game/game.h"
 #include "game/topdown.h"
+#include "main/console.h"
 #undef limit2d
 #include "game/player_control_runtime.h"
 #include "players.h"
@@ -792,6 +793,8 @@ static void handle_one_player_input(
 	   Throttle is (i=X, j=Y) in world space. Set yaw to face movement. */
 	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
 	{
+		/* DEBUG: Print raw throttle values to understand axis mapping */
+		console_printf(TRUE, "THROTTLE DEBUG: i=%.2f j=%.2f", input.throttle.i, input.throttle.j);
 		/* Direct mapping: throttle.i = X (east), throttle.j = Y (north)
 		   yaw = atan2(X, Y): 0=north, pi/2=east */
 		player->desired_angles.yaw = arctangent(input.throttle.i, input.throttle.j);
