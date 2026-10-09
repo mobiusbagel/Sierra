@@ -79,18 +79,6 @@ enum
 
 /* ---------- structures */
 
-struct aim_assist_target
-{
-	long object_index;
-	real_point3d position;
-	real_vector3d vector;
-	real_vector3d direction;
-	real distance;
-	real angle;
-	real autoaim_level;
-	real magnetism_level;
-};
-
 /* ---------- prototypes */
 
 __inline real compute_attenuation(
