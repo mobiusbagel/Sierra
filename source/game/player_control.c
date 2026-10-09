@@ -383,7 +383,7 @@ boolean player_magnetism_flag = TRUE;
 boolean controls_swapped = TRUE;
 
 /* Top-down mode runtime toggle. Default ON. See topdown.h. */
-boolean topdown_mode_enabled = TRUE;
+boolean topdown_mode_enabled = FALSE;
 
 void topdown_mode_set(boolean enabled)
 {
