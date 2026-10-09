@@ -1045,6 +1045,17 @@ static void handle_one_player_input(
 						while (diff > 3.14159265f) diff -= 6.2831853f;
 						while (diff < -3.14159265f) diff += 6.2831853f;
 						player->desired_angles.yaw = base_yaw + diff * 0.15f;
+					/* Pitch for elevation */
+					{
+						real dx_m = tgt.position.x - pos.x;
+						real dy_m = tgt.position.y - pos.y;
+						real dz_m = tgt.position.z - pos.z;
+						real dist2d_m = sqrt(dx_m*dx_m + dy_m*dy_m);
+						if (dist2d_m > 0.1f)
+						{
+							player->desired_angles.pitch = arctangent(dz_m, dist2d_m);
+						}
+					}
 					}
 				}
 			}
