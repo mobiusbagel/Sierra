@@ -859,7 +859,7 @@ static void handle_one_player_input(
 			/* Phase 3c: Mouse aiming - face mouse movement direction directly */
 			/* Use delta (not accumulated cursor) for exact cardinals, no drift */
 			real dx = -input.facing_delta.yaw;   /* Invert: mouse right = negative yaw */
-			real dy = -input.facing_delta.pitch;  /* Invert: mouse up = negative pitch? */
+			real dy = input.facing_delta.pitch;    /* Mouse up = positive pitch (no invert) */
 			/* Convert to world: screen right -> east, screen up -> north */
 			player->desired_angles.yaw = arctangent(dy, dx);
 			/* Movement from left stick/WASD, converted to facing-relative for strafing */
