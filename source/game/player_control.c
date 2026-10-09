@@ -789,21 +789,22 @@ static void handle_one_player_input(
 	player->throttle = input.throttle;
 
 	/* Phase 3a: Top-down movement - screen-relative.
-	   Empirical mapping (from testing):
-	   - input.throttle.i: UP=+1, DOWN=-1 (forward axis)
-	   - input.throttle.j: LEFT=+1, RIGHT=-1 (strafe, inverted)
-	   - player->throttle is WORLD-ALIGNED: i=X(east), j=Y(north)
-	   - arctangent(x,y) returns yaw of vector (y,x) [0=north, cw]
-	   Desired world: X = -j_input, Y = i_input */
+	   Empirical mapping (from Kris testing 2026-10-09):
+	   - input.throttle.i: UP=+1, DOWN=-1; input.throttle.j: LEFT=+1, RIGHT=-1 (inverted)
+	   - player->throttle is FACING-RELATIVE: i=forward, j=strafe
+	   - arctangent(x,y) returns yaw of vector (y,x) [0=north, clockwise]
+	   Strategy: Compute desired world dir (X=-j, Y=i), set facing to it via
+	   yaw=arctangent(Y,X), then set throttle to (magnitude, 0) = "move forward". */
 	if (topdown_mode_enabled && (input.throttle.i != 0.f || input.throttle.j != 0.f))
 	{
-		real world_x = -input.throttle.j;  /* LEFT(+1)->west(-X), RIGHT(-1)->east(+X) */
-		real world_y = input.throttle.i;   /* UP(+1)->north(+Y), DOWN(-1)->south(-Y) */
-		/* Facing: arctangent(y,x) gives yaw of (x,y) vector */
+		real world_x = -input.throttle.j;
+		real world_y = input.throttle.i;
+		real magnitude = sqrt(world_x * world_x + world_y * world_y);
+		/* Facing: correct with arctangent(world_y, world_x) */
 		player->desired_angles.yaw = arctangent(world_y, world_x);
-		/* Movement: throttle is world-aligned, set directly */
-		player->throttle.i = world_x;
-		player->throttle.j = world_y;
+		/* Movement: facing-relative, move forward with input magnitude */
+		player->throttle.i = magnitude;
+		player->throttle.j = 0.f;
 	}
 	player->primary_trigger = input.primary_trigger;
 	match_assert_valid_real(
