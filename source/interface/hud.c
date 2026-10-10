@@ -1475,7 +1475,14 @@ void hud_draw_screen(
 			}
 		}
 		else
-		rasterizer_hud_end();
+		{
+			hud_play_unit_sounds(player, FALSE);
+		}
+
+		hud_messaging_update(render.local_player_index);
+	}
+
+	rasterizer_hud_end();
 	if (temporary_hud)
 	{
 		temporary_hud_draw();
