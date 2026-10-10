@@ -1475,47 +1475,7 @@ void hud_draw_screen(
 			}
 		}
 		else
-		{
-			hud_play_unit_sounds(player, FALSE);
-		}
-
-		hud_messaging_update(render.local_player_index);
-	}
-
-	/* Top-down lock-on reticle: draw at target position */
-	{
-		extern boolean topdown_mode_enabled;
-		extern long topdown_lock_target_index;
-		if (topdown_mode_enabled && topdown_lock_target_index != NONE)
-		{
-			struct unit_datum *tunit = unit_get(topdown_lock_target_index);
-			if (tunit)
-			{
-				/* Draw circular reticle at target via view-space */
-				real_point3d world_pos = tunit->object.position;
-				real_point3d view_pos;
-				world_pos.z += 0.5f;
-				matrix4x3_inverse_transform_point(&render.frustum.view_to_world, &world_pos, &view_pos);
-				/* Draw 16-point circle at (view_pos.x, view_pos.y) */
-				{
-					real radius = 0.02f;
-					int i;
-					for (i = 0; i < 16; i++)
-					{
-						real a1 = (real)i / 16.f * 6.2831853f;
-						real a2 = (real)(i+1) / 16.f * 6.2831853f;
-						real_point3d p1, p2, w1, w2;
-						set_real_point3d(&p1, view_pos.x + cosine(a1)*radius, view_pos.y + sine(a1)*radius, -0.0625f);
-						set_real_point3d(&p2, view_pos.x + cosine(a2)*radius, view_pos.y + sine(a2)*radius, -0.0625f);
-						matrix4x3_transform_point(&render.frustum.view_to_world, &p1, &w1);
-						matrix4x3_transform_point(&render.frustum.view_to_world, &p2, &w2);
-						rasterizer_debug_line(&w1, &w2, &global_real_argb_red);
-					}
-				}
-			}
-		}
-	}
-	rasterizer_hud_end();
+		rasterizer_hud_end();
 	if (temporary_hud)
 	{
 		temporary_hud_draw();
