@@ -130,7 +130,10 @@ void console_open(
 	{
 		console_globals.input_state.result[0] = '\0';
 		console_globals.active = terminal_gets_begin(&console_globals.input_state);
+		/* port: not in the profiling build (as in console_update) */
+#ifndef HALO_PROFILE
 		profile_global_enable = FALSE;
+#endif
 	}
 
 	return;
@@ -455,6 +458,10 @@ boolean console_update(
 			match_assert("c:\\halo\\SOURCE\\main\\console.c", 184, key->key_code!=NONE);
 			switch (key->key_code)
 			{
+			/* port: escape closes it too */
+			case _key_escape:
+				console_close();
+				return FALSE;
 			case _key_backquote:
 				console_close();
 				break;
@@ -506,7 +513,12 @@ boolean console_update(
 	{
 		console_globals.input_state.result[0] = '\0';
 		console_globals.active = terminal_gets_begin(&console_globals.input_state);
+		/* port: the profiling build: cleared mid-frame, a section already entered
+		would never exit, and its next enter assert; and opening the console
+		to type profile_stop would end the recording's timing */
+#ifndef HALO_PROFILE
 		profile_global_enable = FALSE;
+#endif
 	}
 
 	return console_globals.active;

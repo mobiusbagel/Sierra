@@ -15,6 +15,7 @@ and the debug keyboard that the game's console reads.
 #include "port_config.h"
 #include "p2p.h"
 #include "xiso.h"
+#include "touch_input.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -33,6 +34,8 @@ static struct platform_input_state input_state;
 /* keys pressed since the last read, so a press and release between two
 reads still counts as a press (input injected on Android, or a slow frame) */
 static unsigned char keys_pressed[SDL_SCANCODE_COUNT];
+/* The bound Screenshot action requests capture at the next presentation. */
+static BOOL screenshot_requested;
 /* likewise the mouse buttons pressed since the last read, so that a click
 quicker than a frame still counts */
 static unsigned char mouse_buttons_pressed[PLATFORM_MOUSE_BUTTON_COUNT];
@@ -95,6 +98,10 @@ void dsound_sdl_output_device_check(void);
 /* updater.c's: the desktop self-updater */
 void updater_start(void);
 void updater_poll(SDL_Window *window);
+static void screen_keyboard_update(void);
+/* the windows' icon, a PNG (tools/embed_assets.py, from port/assets/icon) */
+extern const unsigned int platform_window_icon[];
+extern const unsigned long platform_window_icon_size;
 #endif
 
 BOOL platform_sdl_initialize(void)
@@ -759,7 +766,7 @@ BOOL platform_video_initialize(unsigned long width, unsigned long height)
 	if (!platform_sdl_initialize())
 		return FALSE;
 
-#ifdef HALO_ANDROID
+#ifdef HALO_GLES
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
@@ -809,11 +816,21 @@ BOOL platform_video_initialize(unsigned long width, unsigned long height)
 		return FALSE;
 	}
 #ifndef HALO_ANDROID
+	/* the game's icon, which the desktop shows for the window (on Windows
+	also halo.exe's own, port/windows/halo.rc) */
+	if (platform_window_icon_size)
+	{
+		SDL_Surface *icon = SDL_LoadPNG_IO(SDL_IOFromConstMem(platform_window_icon, platform_window_icon_size), true);
+
+		if (!icon || !SDL_SetWindowIcon(platform_window, icon))
+			platform_log("cannot set the window's icon: %s", SDL_GetError());
+		SDL_DestroySurface(icon);
+	}
 	platform_fullscreen_requested = platform_fullscreen_setting();
 	platform_fullscreen_kind_apply();
 #endif
 	platform_gl_context = SDL_GL_CreateContext(platform_window);
-#ifdef HALO_ANDROID
+#ifdef HALO_GLES
 	/* ES 3.2 where the driver has it, otherwise the renderer makes do with
 	3.0 plus extensions */
 	if (!platform_gl_context)
@@ -1219,11 +1236,13 @@ static void platform_show_pending_message(void)
 /* ---------- events */
 
 /* quits as closing the window does, when the events are next read (the
-menus' Quit: port/linux/game/menu_functions.c); Android's menus have none,
-as the system closes its apps */
+menus' Quit: port/linux/game/menu_functions.c); on Android at once */
 void platform_request_quit(void)
 {
-#ifndef HALO_ANDROID
+#ifdef HALO_ANDROID
+	/* (the guest has no SDL_PushEvent: exit ends the process, host_exit) */
+	exit(EXIT_SUCCESS);
+#else
 	SDL_Event event;
 
 	memset(&event, 0, sizeof(event));
@@ -1303,6 +1322,24 @@ void platform_scoreboard_scroll(int open, long *notches, long *pages)
 	pthread_mutex_unlock(&input_lock);
 }
 
+void platform_screenshot_request(void)
+{
+	pthread_mutex_lock(&input_lock);
+	screenshot_requested = TRUE;
+	pthread_mutex_unlock(&input_lock);
+}
+
+BOOL platform_screenshot_take_request(void)
+{
+	BOOL requested;
+
+	pthread_mutex_lock(&input_lock);
+	requested = screenshot_requested;
+	screenshot_requested = FALSE;
+	pthread_mutex_unlock(&input_lock);
+	return requested;
+}
+
 void platform_pump_events(void)
 {
 	/* debug.exit_after (seconds) ends the game that long after the window
@@ -1330,6 +1367,7 @@ void platform_pump_events(void)
 	updater_poll(platform_window);
 	/* (Settings > Audio's output device, as it changes: dsound_sdl.c) */
 	dsound_sdl_output_device_check();
+	screen_keyboard_update();
 #endif
 	pthread_mutex_lock(&input_lock);
 #ifndef HALO_ANDROID
@@ -1526,6 +1564,9 @@ void platform_pump_events(void)
 			/* (the scoreboard's pointer goes; the mouse is taken back for
 			the aim as the window has the focus again) */
 			scoreboard_pointer_active = FALSE;
+#ifdef HALO_ANDROID
+			touch_input_cancel();
+#endif
 			break;
 		case SDL_EVENT_WINDOW_FOCUS_GAINED:
 			input_state.focused = TRUE;
@@ -1535,8 +1576,43 @@ void platform_pump_events(void)
 				platform_mouse_capture(TRUE);
 #endif
 			break;
+#ifdef HALO_ANDROID
+		case SDL_EVENT_FINGER_DOWN:
+		case SDL_EVENT_FINGER_MOTION:
+		case SDL_EVENT_FINGER_UP:
+		case SDL_EVENT_FINGER_CANCELED:
+			touch_input_event(event.type, &event.tfinger);
+			break;
+#endif
 		case SDL_EVENT_GAMEPAD_ADDED:
+#ifdef HALO_ARM64_GUEST
+			/* (the guest reaches SDL only through host_imports.list, which
+			has no SDL_GetGamepadName) */
 			SDL_OpenGamepad(event.gdevice.which);
+#else
+			{
+				SDL_Gamepad *gamepad = SDL_OpenGamepad(event.gdevice.which);
+
+				/* (which pads the game drives: under Steam Input, Steam's
+				virtual ones, named for the controllers behind them) */
+				if (gamepad)
+				{
+					const char *name = SDL_GetGamepadName(gamepad);
+
+					platform_log("gamepad: %s", name ? name : "(unnamed)");
+				}
+			}
+#endif
+			break;
+		case SDL_EVENT_GAMEPAD_REMOVED:
+			/* (SDL keeps a gamepad open until it is closed, even once the
+			controller has gone) */
+			{
+				SDL_Gamepad *gamepad = SDL_GetGamepadFromID(event.gdevice.which);
+
+				if (gamepad)
+					SDL_CloseGamepad(gamepad);
+			}
 			break;
 		default:
 			break;
@@ -1632,6 +1708,117 @@ BOOL platform_ui_pointer_read(struct platform_ui_pointer *pointer)
 void platform_video_window_size(int *width, int *height)
 {
 	SDL_GetWindowSize(platform_window, width, height);
+}
+
+/* ---------- the system's on-screen keyboard */
+
+/* A menu's text field is typed into (platform_text_field, xinput_sdl.c).
+Where Steam's on-screen keyboard is there to bring up (in Big Picture and in
+the Steam Deck's Game Mode, which ask for it with
+SDL_ENABLE_STEAM_SCREEN_KEYBOARD), SDL's text input runs while the field is
+typed into: the keyboard comes up with the field and goes with it, and what
+it types arrives as keys. Elsewhere text input stays off, as before, so that
+no input method takes the keys the field reads: a Wayland touch screen's
+keyboard (text-input-v3) would type text events, which the field does not
+read. */
+static SDL_AtomicInt screen_keyboard_wanted;
+/* (each field begun, which brings the keyboard up again: Steam does not say
+when its keyboard goes, by its own Enter or closed by hand, so SDL holds it
+to be up still; after a field ended and another begun in the same frame, as
+the password screen's is after a wrong password, it would not come back) */
+static SDL_AtomicInt screen_keyboard_requests;
+
+void platform_screen_keyboard(BOOL show, BOOL password)
+{
+	SDL_SetAtomicInt(&screen_keyboard_wanted, !show ? 0 : password ? 2 : 1);
+	if (show)
+		SDL_AddAtomicInt(&screen_keyboard_requests, 1);
+}
+
+/* (on the window's thread, as SDL asks: platform_pump_events) */
+static void screen_keyboard_update(void)
+{
+	/* (a keyboard shown again is closed first, as SDL opens none that it
+	holds to be up, and opened a moment later: Steam takes each as a URL,
+	steam://close/keyboard then steam://open/keyboard, which must not
+	arrive the other way round) */
+	enum { REOPEN_DELAY_MS = 500 };
+	static int requests_handled;
+	static Uint64 open_time;
+	int requests = SDL_GetAtomicInt(&screen_keyboard_requests);
+	int wanted = SDL_GetAtomicInt(&screen_keyboard_wanted);
+
+	if (!wanted)
+	{
+		open_time = 0;
+		if (SDL_TextInputActive(platform_window))
+			SDL_StopTextInput(platform_window);
+		return;
+	}
+	if (requests != requests_handled)
+	{
+		requests_handled = requests;
+		if (!SDL_HasScreenKeyboardSupport() ||
+			!SDL_GetHintBoolean(SDL_HINT_ENABLE_STEAM_SCREEN_KEYBOARD, false))
+		{
+			return;
+		}
+		open_time = SDL_GetTicks();
+		if (SDL_TextInputActive(platform_window))
+		{
+			SDL_StopTextInput(platform_window);
+			open_time += REOPEN_DELAY_MS;
+		}
+	}
+	if (open_time && SDL_GetTicks() >= open_time)
+	{
+		/* one line: the keyboard's Enter ends the field (and Steam's
+		keyboard goes with it); a password's, for the keyboards that hide
+		what is typed into one */
+		SDL_PropertiesID properties = SDL_CreateProperties();
+
+		open_time = 0;
+		platform_log("text field: showing the on-screen keyboard");
+		SDL_SetBooleanProperty(properties, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false);
+		SDL_SetNumberProperty(properties, SDL_PROP_TEXTINPUT_TYPE_NUMBER,
+			wanted == 2 ? SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_HIDDEN : SDL_TEXTINPUT_TYPE_TEXT);
+		SDL_StartTextInputWithProperties(platform_window, properties);
+		SDL_DestroyProperties(properties);
+	}
+}
+
+#else
+/* ---------- the menus' pointer (the touchscreen)
+
+While a menu is up, taps and drags go to the menus (touch_input.c,
+halo_ui_pointer_update in d3d8_gl.c). */
+void platform_ui_pointer_set_active(BOOL active)
+{
+	pthread_mutex_lock(&input_lock);
+	if ((active != FALSE) != (input_state.ui_pointer != FALSE))
+	{
+		input_state.ui_pointer = active;
+		touch_input_menu_set_active(active != FALSE);
+	}
+	pthread_mutex_unlock(&input_lock);
+}
+
+BOOL platform_ui_pointer_read(struct platform_ui_pointer *pointer)
+{
+	BOOL active;
+
+	pthread_mutex_lock(&input_lock);
+	active = input_state.ui_pointer;
+	touch_input_menu_read(pointer);
+	pthread_mutex_unlock(&input_lock);
+	return active;
+}
+
+/* the window is its pixels on Android (no display scaling): touch_input.c
+scales the fingers' 0..1 by the drawable's size */
+void platform_video_window_size(int *width, int *height)
+{
+	platform_video_drawable_size(width, height);
 }
 
 #endif

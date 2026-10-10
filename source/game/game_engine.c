@@ -1152,7 +1152,7 @@ static void game_engine_generate_title_string(
 			usnprintf(
 				life_string,
 				NUMBEROF(life_string),
-				format_string,
+				ustring_format_checked(format_string, "d"),
 				remaining_lives);
 			life_string[NUMBEROF(life_string) - 1] = 0;
 			secondary_string = life_string;
@@ -1294,7 +1294,7 @@ static void game_engine_generate_title_string(
 			usnprintf(
 				title_string,
 				80,
-				format_string,
+				ustring_format_checked(format_string, "sss"),
 				team0_name,
 				team1_name,
 				secondary_string);
@@ -1314,7 +1314,7 @@ static void game_engine_generate_title_string(
 			usnprintf(
 				title_string,
 				80,
-				format_string,
+				ustring_format_checked(format_string, "sss"),
 				team1_name,
 				team0_name,
 				secondary_string);
@@ -1334,7 +1334,7 @@ static void game_engine_generate_title_string(
 			usnprintf(
 				title_string,
 				80,
-				format_string,
+				ustring_format_checked(format_string, "ss"),
 				team1_name,
 				secondary_string);
 		}
@@ -1362,7 +1362,7 @@ static void game_engine_generate_title_string(
 			usnprintf(
 				title_string,
 				80,
-				format_string,
+				ustring_format_checked(format_string, "sss"),
 				get_place_string(&entry),
 				score_string,
 				secondary_string);
@@ -1383,7 +1383,7 @@ static void game_engine_generate_title_string(
 			usnprintf(
 				title_string,
 				80,
-				format_string,
+				ustring_format_checked(format_string, "sss"),
 				get_place_string(&entry),
 				score_string,
 				secondary_string);
@@ -2270,7 +2270,10 @@ static void game_engine_rasterize_scoreboard(
 	score_string[0] = 0;
 	if (!campaign)
 		game_engine->format_score_name(score_string);
-	usprintf(row_string, L"\t%s\t%s\t%s\t%s", column_name, score_name, score_string, network ? L"Ping" : L"");
+	/* port: bounded (the map's column names) */
+	usnprintf(row_string, NUMBEROF(row_string), L"\t%s\t%s\t%s\t%s", column_name, score_name, score_string,
+		network ? L"Ping" : L"");
+	row_string[NUMBEROF(row_string) - 1] = 0;
 	{
 		long column;
 
@@ -2337,13 +2340,15 @@ static void game_engine_rasterize_scoreboard(
 			else
 				usprintf(ping_string, L"%ld", ping);
 		}
-		usprintf(
+		usnprintf(
 			row_string,
+			NUMBEROF(row_string),
 			L"\t%s\t%s\t%s\t%s",
 			campaign ? L"" : get_place_string(entry),
 			player->name,
 			status_string,
 			ping_string);
+		row_string[NUMBEROF(row_string) - 1] = 0;
 		row_color = has_teams ? &team_colors[PIN(player->team_index, 0, 1)] : &color;
 		/* port: a player talking (or muted) in voice chat, its speaker just
 		right of the name */
@@ -2559,7 +2564,8 @@ static void game_engine_rasterize_in_game_score(
 		score_name = L"";
 
 	game_engine->format_score_name(score_string);
-	usprintf(row_string, L"\t%s\t%s\t%s", column_name, score_name, score_string);
+	usnprintf(row_string, NUMBEROF(row_string), L"\t%s\t%s\t%s", column_name, score_name, score_string);
+	row_string[NUMBEROF(row_string) - 1] = 0;
 	rasterize_in_game_score_draw_line(row_string, FALSE, &color, 1);
 
 	for (entry_index = 0; entry_index < entry_count; entry_index++)
@@ -2616,12 +2622,14 @@ static void game_engine_rasterize_in_game_score(
 
 			place_string = get_place_string(&entries[entry_index]);
 
-			usprintf(
+			usnprintf(
 				row_string,
+				NUMBEROF(row_string),
 				L"\t%s\t%s\t%s",
 				place_string,
 				player->name,
 				status_string);
+			row_string[NUMBEROF(row_string) - 1] = 0;
 
 			if (has_teams)
 				row_color = &team_colors[PIN(player->team_index, 0, 1)];
@@ -2760,7 +2768,7 @@ void game_engine_post_rasterize_post_game(
 			usnprintf(
 				row_string,
 				NUMBEROF(row_string),
-				team_formats[team_index],
+				ustring_format_checked(team_formats[team_index], "s"),
 				score_string);
 			row_string[NUMBEROF(row_string) - 1] = 0;
 			drawline(row_string, team_row + 4, 0);
@@ -7191,72 +7199,60 @@ void game_engine_variant_cleanup(
 	return;
 }
 
-static void game_engine_predict_resources(
-	void)
+/* port: one of the globals' three multiplayer vehicles (0 warthog, 1 ghost,
+2 scorpion), or NONE for one the map's globals lack: a Custom Edition map's
+may have fewer, which the original read past the end of */
+static long game_engine_multiplayer_vehicle(
+	long index)
 {
-	struct game_globals *game_globals;
-	struct game_globals_multiplayer_information *multiplayer_information;
-	struct game_globals_vehicle *vehicle;
-	long weapon_indices[10];
-	long weapon_index;
+	struct game_globals *game_globals = scenario_get_game_globals();
+	struct game_globals_multiplayer_information *information;
 
-	game_globals = scenario_get_game_globals();
-	multiplayer_information = TAG_BLOCK_GET_ELEMENT(
+	if (game_globals->multiplayer_information.count <= 0)
+		return NONE;
+	information = TAG_BLOCK_GET_ELEMENT(
 		&game_globals->multiplayer_information,
 		0,
 		struct game_globals_multiplayer_information);
+	if (index >= information->vehicles.count)
+		return NONE;
+	return TAG_BLOCK_GET_ELEMENT(&information->vehicles, index, struct game_globals_vehicle)->vehicle.index;
+}
 
-	/* port: the cases below take the three multiplayer vehicles the Xbox's
-	globals always have; a Halo Custom Edition map's can have fewer, and then
-	gets no vehicle predicted (port/linux/game/custom_edition_cache.c) */
-	if (multiplayer_information->vehicles.count >= 3)
+static void game_engine_predict_multiplayer_vehicle(
+	long index)
+{
+	long definition_index = game_engine_multiplayer_vehicle(index);
+
+	if (definition_index != NONE)
+		object_definition_predict(definition_index);
+}
+
+static void game_engine_predict_resources(
+	void)
+{
+	long weapon_indices[10];
+	long weapon_index;
+
 	switch (global_variant.universal_variant.vehicle_set)
 	{
 	case _game_engine_vehicles_warthog:
-		vehicle = TAG_BLOCK_GET_ELEMENT(
-			&multiplayer_information->vehicles,
-			0,
-			struct game_globals_vehicle);
-		object_definition_predict(vehicle->vehicle.index);
+		game_engine_predict_multiplayer_vehicle(0);
 		break;
 
 	case _game_engine_vehicles_ghost:
-		vehicle = TAG_BLOCK_GET_ELEMENT(
-			&multiplayer_information->vehicles,
-			1,
-			struct game_globals_vehicle);
-		object_definition_predict(vehicle->vehicle.index);
+		game_engine_predict_multiplayer_vehicle(1);
 		break;
 
 	case _game_engine_vehicles_tank:
-		vehicle = TAG_BLOCK_GET_ELEMENT(
-			&multiplayer_information->vehicles,
-			2,
-			struct game_globals_vehicle);
-		object_definition_predict(vehicle->vehicle.index);
+		game_engine_predict_multiplayer_vehicle(2);
 		break;
 
 	default:
-	{
-		struct tag_block *vehicles = &multiplayer_information->vehicles;
-
-		vehicle = TAG_BLOCK_GET_ELEMENT(
-			vehicles,
-			0,
-			struct game_globals_vehicle);
-		object_definition_predict(vehicle->vehicle.index);
-		vehicle = TAG_BLOCK_GET_ELEMENT(
-			vehicles,
-			1,
-			struct game_globals_vehicle);
-		object_definition_predict(vehicle->vehicle.index);
-		vehicle = TAG_BLOCK_GET_ELEMENT(
-			vehicles,
-			2,
-			struct game_globals_vehicle);
-		object_definition_predict(vehicle->vehicle.index);
+		game_engine_predict_multiplayer_vehicle(0);
+		game_engine_predict_multiplayer_vehicle(1);
+		game_engine_predict_multiplayer_vehicle(2);
 		break;
-	}
 	}
 
 	object_definition_predict(list_index_to_weapon_definition_index(_weapon_list_frag_grenade));
@@ -7667,32 +7663,16 @@ long game_engine_remap_vehicle(
 	}
 	if (game_engine)
 	{
-		struct game_globals *game_globals;
-		struct game_globals_multiplayer_information *multiplayer_information;
-		struct tag_block *vehicles;
-		struct game_globals_vehicle *vehicle0;
-		struct game_globals_vehicle *vehicle1;
-		struct game_globals_vehicle *vehicle2;
-		struct game_globals_vehicle *vehicle;
-
-		game_globals = scenario_get_game_globals();
-		multiplayer_information = TAG_BLOCK_GET_ELEMENT(
-			&game_globals->multiplayer_information,
-			0,
-			struct game_globals_multiplayer_information);
-		vehicle0 = TAG_BLOCK_GET_ELEMENT(
-			&multiplayer_information->vehicles,
-			0,
-			struct game_globals_vehicle);
-		vehicles = &multiplayer_information->vehicles;
-		vehicle1 = TAG_BLOCK_GET_ELEMENT(vehicles, 1, struct game_globals_vehicle);
-		vehicle2 = TAG_BLOCK_GET_ELEMENT(vehicles, 2, struct game_globals_vehicle);
+		/* (port: NONE for one the map's globals lack) */
+		long vehicle0 = game_engine_multiplayer_vehicle(0);
+		long vehicle1 = game_engine_multiplayer_vehicle(1);
+		long vehicle2 = game_engine_multiplayer_vehicle(2);
 
 		/* (port: and the other types a gametype's sets name, which a map may
 		have: game_engine_variant_vehicle_type) */
-		if (result != vehicle0->vehicle.index &&
-			result != vehicle1->vehicle.index &&
-			result != vehicle2->vehicle.index &&
+		if (result != vehicle0 &&
+			result != vehicle1 &&
+			result != vehicle2 &&
 			((game_variant_options_get()->vehicle_set[0] == _game_engine_vehicles_default &&
 				game_variant_options_get()->vehicle_set[1] == _game_engine_vehicles_default) ||
 				game_engine_variant_vehicle_type(result) == NONE))
@@ -7710,29 +7690,17 @@ long game_engine_remap_vehicle(
 			break;
 
 		case _game_engine_vehicles_warthog:
-			vehicle = TAG_BLOCK_GET_ELEMENT(
-				vehicles,
-				0,
-				struct game_globals_vehicle);
-			if (vehicle->vehicle.index != result)
+			if (vehicle0 != result)
 				result = NONE;
 			break;
 
 		case _game_engine_vehicles_ghost:
-			vehicle = TAG_BLOCK_GET_ELEMENT(
-				vehicles,
-				1,
-				struct game_globals_vehicle);
-			if (vehicle->vehicle.index != result)
+			if (vehicle1 != result)
 				result = NONE;
 			break;
 
 		case _game_engine_vehicles_tank:
-			vehicle = TAG_BLOCK_GET_ELEMENT(
-				vehicles,
-				2,
-				struct game_globals_vehicle);
-			if (vehicle->vehicle.index != result)
+			if (vehicle2 != result)
 				result = NONE;
 			break;
 		}
@@ -8198,12 +8166,7 @@ static void game_engine_verify_current_map(
 		_netgame_flag_race_track,
 		"NETGAME MAP FAILURE: duplicate race track flag [team %d]");
 
-	/* BUG (preserved for exact matching): January passes team index zero for
-	 * both CTF checks, and netgame_verify_spawn_points never reads that
-	 * formal parameter.
-	 * A corrected build should filter starting locations by an authoritatively
-	 * recovered team-index field before reporting per-team counts.
-	 */
+	/* (the team index is not read: both checks count every ctf spawn) */
 	netgame_verify_spawn_points(
 		game_engine_ctf,
 		0,
@@ -8383,7 +8346,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			player->name);
 		break;
 	case _game_engine_message_killed_by_unknown:
@@ -8395,7 +8358,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			player->name);
 		break;
 	case _game_engine_message_killed_by_biped:
@@ -8407,7 +8370,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			player->name);
 		break;
 	case _game_engine_message_killed_by_vehicle:
@@ -8419,7 +8382,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			player->name);
 		break;
 	case _game_engine_message_killed_by_player:
@@ -8432,7 +8395,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "ss"),
 			player->name,
 			other_player->name);
 		break;
@@ -8446,7 +8409,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "ss"),
 			player->name,
 			other_player->name);
 		break;
@@ -8460,7 +8423,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			other_player->name);
 		break;
 	case _game_engine_message_killed_by_self:
@@ -8472,7 +8435,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			player->name);
 		break;
 	case _game_engine_message_killed_friendly:
@@ -8485,7 +8448,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			other_player->name);
 		break;
 	case _game_engine_message_multi_kill:
@@ -8558,7 +8521,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "s"),
 			other_player->name);
 		break;
 	case _game_engine_message_multi_kill_with_score:
@@ -8570,7 +8533,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "d"),
 			score);
 		game_engine_play_multiplayer_sound(_multiplayer_sound_killtacular_kill);
 		break;
@@ -8583,7 +8546,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "d"),
 			score);
 		game_engine_play_multiplayer_sound(_multiplayer_sound_triple_kill);
 		break;
@@ -8596,7 +8559,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "d"),
 			score);
 		game_engine_play_multiplayer_sound(_multiplayer_sound_double_kill);
 		break;
@@ -8609,7 +8572,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "d"),
 			score);
 		game_engine_play_multiplayer_sound(_multiplayer_sound_running_riot);
 		break;
@@ -8622,7 +8585,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "d"),
 			score);
 		game_engine_play_multiplayer_sound(_multiplayer_sound_killing_spree);
 		break;
@@ -8636,7 +8599,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "sd"),
 			other_player->name,
 			score);
 		break;
@@ -8671,7 +8634,7 @@ static boolean internal_rasterize_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			format,
+			ustring_format_checked(format, "d"),
 			message_data);
 		break;
 	case _game_engine_message_waiting_for_space_to_clear:
