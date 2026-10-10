@@ -1252,6 +1252,42 @@ static void crosshairs_draw(
 									}
 									if (bitmap && _texture_cache_bitmap_get_hardware_format(bitmap, FALSE, TRUE))
 									{
+										/* top-down: draw this weapon's crosshair on the lock target; hide when no lock */
+										extern boolean topdown_mode_enabled;
+										extern long topdown_lock_target_index;
+										struct hud_placement_definition const *crosshair_placement = &item->placement;
+										struct hud_placement_definition topdown_placement;
+										struct unit_datum *lock_unit;
+										real_point3d lock_world;
+										real_point3d lock_view;
+										real tan_half_vfov;
+										real aspect;
+										real ndc_x;
+										real ndc_y;
+										if (topdown_mode_enabled)
+										{
+											if (topdown_lock_target_index == NONE)
+												continue;
+											lock_unit = unit_get(topdown_lock_target_index);
+											if (!lock_unit)
+												continue;
+											lock_world = lock_unit->object.position;
+											lock_world.z += 0.5f;
+											matrix4x3_inverse_transform_point(&render.frustum.view_to_world, &lock_world, &lock_view);
+											if (lock_view.z >= -0.1f)
+												continue;
+											tan_half_vfov = tangent(render.camera.vertical_field_of_view * 0.5f);
+											aspect = (real)(render.camera.viewport_bounds.x1 - render.camera.viewport_bounds.x0) /
+												(real)(render.camera.viewport_bounds.y1 - render.camera.viewport_bounds.y0);
+											ndc_x = (lock_view.x / -lock_view.z) / (tan_half_vfov * aspect);
+											ndc_y = (lock_view.y / -lock_view.z) / tan_half_vfov;
+											if (ndc_x < -1.f || ndc_x > 1.f || ndc_y < -1.f || ndc_y > 1.f)
+												continue;
+											topdown_placement = item->placement;
+											topdown_placement.offset.x = (short)((ndc_x * 0.5f + 0.5f) * 640.f - 320.f) + item->placement.offset.x;
+											topdown_placement.offset.y = (short)((0.5f - ndc_y * 0.5f) * 480.f - 240.f) + item->placement.offset.y;
+											crosshair_placement = &topdown_placement;
+										}
 										if (TEST_FLAG(item->flags, _hud_crosshair_hide_outside_area_bit))
 										{
 											real texel_scale_u = 1.0f;
@@ -1288,7 +1324,7 @@ static void crosshairs_draw(
 											hud_draw_bitmap(
 												bitmap,
 												&absolute_placement,
-												&item->placement,
+												crosshair_placement,
 												&clip,
 												scale,
 												0.0f,
@@ -1302,7 +1338,7 @@ static void crosshairs_draw(
 											hud_draw_bitmap(
 												bitmap,
 												&absolute_placement,
-												&item->placement,
+												crosshair_placement,
 												sequence ?
 													&TAG_BLOCK_GET_ELEMENT(&sequence->sprites, frame_index, struct bitmap_group_sprite)->bounds :
 													NULL,
