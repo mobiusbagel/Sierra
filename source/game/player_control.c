@@ -821,6 +821,15 @@ static void handle_one_player_input(
 	{
 		/* Block D-pad: zero throttles so stock code can't use D-pad for movement */
 		/* (We control player->throttle entirely from sticks in top-down mode) */
+		/* Drop lock if the target died or its object went away */
+		if (topdown_lock_target_index != NONE)
+		{
+			struct unit_datum *lock_check_unit = unit_get(topdown_lock_target_index);
+			if (!lock_check_unit || TEST_FLAG(lock_check_unit->object.damage_flags, _object_dead_bit))
+			{
+				topdown_lock_target_index = NONE;
+			}
+		}
 		input.throttle.i = 0.f;
 		input.throttle.j = 0.f;
 		player->throttle.i = 0.f;
@@ -884,8 +893,8 @@ static void handle_one_player_input(
 					struct player_datum *pdat;
 					short team;
 					pos = unit_get(unit_index)->object.position;
-					dir.i = sine(yaw);
-					dir.j = cosine(yaw);
+					dir.i = cosine(yaw);
+					dir.j = sine(yaw);
 					dir.k = 0.f;
 					ap.magnetism_angle = 0.20944f; /* 12 degrees in radians */
 					ap.magnetism_distance = 30.f;
@@ -937,6 +946,7 @@ static void handle_one_player_input(
 					else
 					{
 						lock_target_index = NONE;
+						topdown_lock_target_index = NONE;
 					}
 				}
 			}
@@ -1052,8 +1062,8 @@ static void handle_one_player_input(
 				if (unit_ptr)
 				{
 					pos = unit_get(unit_index)->object.position;
-					dir.i = sine(base_yaw);
-					dir.j = cosine(base_yaw);
+					dir.i = cosine(base_yaw);
+					dir.j = sine(base_yaw);
 					dir.k = 0.f;
 					ap.magnetism_angle = 0.10472f;
 					ap.magnetism_distance = 30.f;
