@@ -1030,16 +1030,6 @@ static void handle_one_player_input(
 			real world_y;
 			real magnitude;
 			real base_yaw;
-			long unit_index;
-			struct unit_datum *unit_ptr;
-			real_point3d pos;
-				real_vector3d dir;
-				struct aim_assist_parameters ap;
-				struct aim_assist_target tgt;
-				struct player_datum *pdat;
-				short team_idx;
-				real tyaw;
-				real diff;
 			/* Phase 3a: No aim input, face movement direction */
 			/* Set world_x/world_y from left stick (we're in left_stick_active branch) */
 			world_x = (real)ls_x / 32767.f;
@@ -1055,51 +1045,6 @@ static void handle_one_player_input(
 			player->desired_angles.yaw = base_yaw;
 			player->throttle.i = magnitude;
 			player->throttle.j = 0.f;
-			/* Phase 3d: Gungeon-style magnetic assist (idle only, C89-compliant) */
-			unit_index = player->unit_index;
-			if (unit_index != NONE)
-			{
-				unit_ptr = unit_get(unit_index);
-				if (unit_ptr)
-				{
-					pos = unit_get(unit_index)->object.position;
-					dir.i = cosine(base_yaw);
-					dir.j = sine(base_yaw);
-					dir.k = 0.f;
-					ap.magnetism_angle = 0.10472f;
-					ap.magnetism_distance = 30.f;
-					ap.autoaim_angle = 0.f;
-					ap.autoaim_distance = 0.f;
-					ap.deviation_angle = 0.f;
-					pdat = player_get(local_player_get_player_index(local_player_index));
-					team_idx = pdat ? pdat->team_index : 0;
-					if (aim_assist(&ap, &pos, &dir, unit_index, team_idx, &tgt) &&
-						topdown_world_point_on_screen(&tgt.position))
-					{
-						tyaw = arctangent(tgt.vector.j, tgt.vector.i);
-						diff = tyaw - base_yaw;
-						while (diff > 3.14159265f) diff -= 6.2831853f;
-						while (diff < -3.14159265f) diff += 6.2831853f;
-						player->desired_angles.yaw = base_yaw + diff * 0.15f;
-					/* Pitch for elevation */
-					{
-						long punit_idx2 = player_control_get_unit_index(local_player_index);
-						struct unit_datum *punit2 = unit_get(punit_idx2);
-						if (punit2)
-						{
-							real dx_m = tgt.position.x - punit2->object.position.x;
-							real dy_m = tgt.position.y - punit2->object.position.y;
-							real dz_m = tgt.position.z - punit2->object.position.z;
-							real dist2d_m = sqrt(dx_m*dx_m + dy_m*dy_m);
-							if (dist2d_m > 0.1f)
-							{
-								player->desired_angles.pitch = arctangent(dz_m, dist2d_m);
-							}
-						}
-					}
-					}
-				}
-			}
 		}
 	}
 	player->primary_trigger = input.primary_trigger;
