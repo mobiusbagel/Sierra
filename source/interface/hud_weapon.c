@@ -957,6 +957,35 @@ finished:
 	return;
 }
 
+/* Top-down: TRUE if the given world position is on screen, using the last
+   rendered frame's camera. Gameplay query used to restrict lock-on/aim-assist
+   to visible enemies. */
+boolean topdown_world_point_on_screen(
+	real_point3d const *world_pos)
+{
+	real_point3d view_pos;
+	real tan_half_vfov;
+	real viewport_w;
+	real viewport_h;
+	real aspect;
+	real ndc_x;
+	real ndc_y;
+
+	matrix4x3_inverse_transform_point(&render.frustum.view_to_world, world_pos, &view_pos);
+	/* Behind or essentially at the camera plane: not visible */
+	if (view_pos.z >= -0.1f)
+		return FALSE;
+	tan_half_vfov = tangent(render.camera.vertical_field_of_view * 0.5f);
+	viewport_w = (real)(render.camera.viewport_bounds.x1 - render.camera.viewport_bounds.x0);
+	viewport_h = (real)(render.camera.viewport_bounds.y1 - render.camera.viewport_bounds.y0);
+	if (tan_half_vfov <= 0.f || viewport_w <= 0.f || viewport_h <= 0.f)
+		return FALSE;
+	aspect = viewport_w / viewport_h;
+	ndc_x = (view_pos.x / -view_pos.z) / (tan_half_vfov * aspect);
+	ndc_y = (view_pos.y / -view_pos.z) / tan_half_vfov;
+	return (ndc_x >= -1.f && ndc_x <= 1.f && ndc_y >= -1.f && ndc_y <= 1.f);
+}
+
 static void crosshairs_draw(
 	struct player_datum *player,
 	long weapon_index,

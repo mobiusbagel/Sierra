@@ -903,7 +903,8 @@ static void handle_one_player_input(
 					ap.deviation_angle = 0.f;
 					pdat = player_get(local_player_get_player_index(local_player_index));
 					team = pdat ? pdat->team_index : 0;
-					if (aim_assist(&ap, &pos, &dir, unit_index, team, &tgt))
+					if (aim_assist(&ap, &pos, &dir, unit_index, team, &tgt) &&
+						topdown_world_point_on_screen(&tgt.position))
 					{
 						console_printf(TRUE, "LOCK-ON: target found!");
 						/* Soft lock: pull 35% toward target (friction, not snap) */
@@ -1072,7 +1073,8 @@ static void handle_one_player_input(
 					ap.deviation_angle = 0.f;
 					pdat = player_get(local_player_get_player_index(local_player_index));
 					team_idx = pdat ? pdat->team_index : 0;
-					if (aim_assist(&ap, &pos, &dir, unit_index, team_idx, &tgt))
+					if (aim_assist(&ap, &pos, &dir, unit_index, team_idx, &tgt) &&
+						topdown_world_point_on_screen(&tgt.position))
 					{
 						tyaw = arctangent(tgt.vector.j, tgt.vector.i);
 						diff = tyaw - base_yaw;

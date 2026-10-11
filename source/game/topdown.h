@@ -43,4 +43,8 @@ extern long topdown_lock_target_index;
 /* Sets the top-down mode runtime toggle. Called via console command. */
 void topdown_mode_set(boolean enabled);
 
+/* TRUE if the given world position is on screen (last rendered frame's camera).
+   Defined in hud_weapon.c; used to restrict lock-on/aim-assist to visible enemies. */
+boolean topdown_world_point_on_screen(real_point3d const *world_pos);
+
 #endif // __TOPDOWN_H
