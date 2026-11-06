@@ -54,11 +54,20 @@ going private does.
 
 Checking signatures takes work, and anyone can send listings: at most
 VERIFY_BUDGET milliseconds of it each pass of the p2p thread, from a queue
-of MAXIMUM_QUEUED; the rest is dropped (hosts publish again).
+of MAXIMUM_QUEUED; the rest is dropped (hosts publish again). A listing that
+could not be shown (another network version's, or one outside its time
+window) is dropped before it takes a place there (listing_wanted): on
+subscribing, a broker sends every slot it keeps, and on a public one most
+are games long gone, which filled the queue and crowded out live games.
 
 Each game's host is probed for its ping (p2p_probe_start: the tunnel to it
-timed, p2p.c), a few at once, again each PROBE_REFRESH and on Refresh. A
-game with a password is not: its token is sealed.
+timed, p2p.c), a few at once, in the order the browser shows the games
+(p2p_lobby_shown), those it does not show last, again each PROBE_REFRESH
+and on Refresh. A game with a password is not: its token is sealed. The
+probes wait for the listings queued to be shown first, so that they start
+in the order shown, but at most PROBE_HOLD after the browser opens or
+Refresh: anyone can send listings, and a queue kept full would hold them
+back for good.
 */
 
 #include "platform.h"
@@ -96,7 +105,7 @@ enum
 		P2P_SIGNATURE_SIZE,
 	MAXIMUM_GAMES = 256,
 	MAXIMUM_TOMBSTONES = 256,
-	MAXIMUM_QUEUED = 64,
+	MAXIMUM_QUEUED = 128,
 
 	/* milliseconds */
 	REPUBLISH_INTERVAL = 30000,
@@ -104,6 +113,7 @@ enum
 	QUERY_JITTER = 2000,
 	GAME_EXPIRY = 90000,
 	PROBE_REFRESH = 120000,
+	PROBE_HOLD = 1000,
 	TOMBSTONE_TIME = 600000,
 	VERIFY_BUDGET = 2,
 	/* seconds */
@@ -148,12 +158,18 @@ struct game
 	int payload_size;
 	struct p2p_listing listing;
 	/* its invite's token (none: a password's game); its host's ping
-	(-1: not known), whether it is being probed, and when it last was */
+	(-1: not known), whether it is being probed, and when it last was (0:
+	due; else odd, and never ahead of the clock, which elapsed reads as
+	long past); whether Refresh asked for it to be timed again, until that
+	probe ends */
 	int has_token;
 	unsigned char token[P2P_TOKEN_SIZE];
 	int ping;
 	int probing;
 	unsigned long probed_time;
+	int refreshing;
+	/* its place in the browser's list, from 1 (0: not shown) */
+	int shown;
 	/* listed by a master server (master_list.c) lately: not probed (the
 	player's address is not told to every server listed), and when */
 	int master;
@@ -213,6 +229,9 @@ static struct
 
 	/* browsing */
 	int browsing;
+	/* when the browser opened or was refreshed (the probes wait at most
+	PROBE_HOLD from it for the queue) */
+	unsigned long browse_time;
 	int query_wanted;
 	struct queued queue[MAXIMUM_QUEUED];
 	int queue_count;
@@ -422,6 +441,18 @@ static int listing_read(const unsigned char *bytes, int size, struct listing *li
 	return 1;
 }
 
+/* whether a listing is of about now: a slot's retained copy within
+RETAINED_WINDOW (a host that died left it, and nothing cleared it), a live
+one within LIVE_WINDOW (not one long gone, published again by someone who
+kept it) */
+static int listing_current(const struct listing *listing, int retained)
+{
+	long difference = (long)(listing->time - (unsigned long)time(NULL));
+	long window = retained ? RETAINED_WINDOW : LIVE_WINDOW;
+
+	return difference <= window && difference >= -window;
+}
+
 static int listing_signed(const unsigned char *bytes, const struct listing *listing)
 {
 	unsigned char data[sizeof(signature_label) - 1 + MAXIMUM_LISTING_SIZE];
@@ -585,6 +616,8 @@ static int identifier_failed(const unsigned char *identifier)
 	return 0;
 }
 
+static int listing_wanted(const unsigned char *payload, int size, int retained, const unsigned char *key_hash);
+
 void p2p_lobby_slot_heard(const char *hash_text, const unsigned char *payload, int size, int retained)
 {
 	unsigned char key_hash[P2P_KEY_HASH_SIZE];
@@ -618,6 +651,8 @@ void p2p_lobby_slot_heard(const char *hash_text, const unsigned char *payload, i
 		game->heard_time = p2p_now();
 		return;
 	}
+	if (!listing_wanted(payload, size, retained, key_hash))
+		return;
 	for (index = 0; index < lobby.queue_count; index++)
 	{
 		if (lobby.queue[index].size == size && !memcmp(lobby.queue[index].payload, payload, (size_t)size))
@@ -723,30 +758,52 @@ static void listing_take(const struct queued *queued, const struct listing *list
 	shown->network_version = (unsigned short)listing->version;
 }
 
-/* the hosts' pings: those not known lately probed, while there is room (a
-few refused, and the rest wait for a later pass) */
+/* the game as the browser shows it */
+static void game_listed(const struct game *game, struct p2p_listing *listing)
+{
+	*listing = game->listing;
+	listing->failed = (unsigned char)identifier_failed(listing->identifier);
+	listing->ping = (short)game->ping;
+	listing->probing = (unsigned char)game->probing;
+	listing->refreshing = (unsigned char)game->refreshing;
+}
+
+/* the hosts' pings: those not known lately probed, in the order shown,
+while there is room (a few refused, and the rest wait for a later pass) */
 static void update_probes(void)
 {
+	unsigned char started[MAXIMUM_GAMES] = { 0 };
 	int refused = 0;
-	int index;
 
-	for (index = 0; index < MAXIMUM_GAMES && refused < P2P_MAXIMUM_PROBES; index++)
+	while (refused < P2P_MAXIMUM_PROBES)
 	{
-		struct game *game = &lobby.games[index];
+		struct game *next = NULL;
+		int index;
 
-		if (!game->used || !game->has_token || game->probing || game->master ||
-			(game->probed_time && !elapsed(game->probed_time, PROBE_REFRESH)))
+		for (index = 0; index < MAXIMUM_GAMES; index++)
 		{
-			continue;
+			struct game *game = &lobby.games[index];
+
+			if (!game->used || !game->has_token || game->probing || game->master || started[index] ||
+				(game->probed_time && !elapsed(game->probed_time, PROBE_REFRESH)))
+			{
+				continue;
+			}
+			if (!next || (game->shown && (!next->shown || game->shown < next->shown)))
+				next = game;
 		}
+		if (!next)
+			break;
+		/* (each game once a pass: a refused one stays wanted) */
+		started[next - lobby.games] = 1;
 		/* (set first: a probe that needs no tunnel ends at once,
 		p2p_lobby_probed) */
-		game->probing = 1;
-		game->probed_time = p2p_now() | 1;
-		if (!p2p_probe_start(game->key_hash, game->token))
+		next->probing = 1;
+		next->probed_time = (p2p_now() - 1) | 1;
+		if (!p2p_probe_start(next->key_hash, next->token))
 		{
-			game->probing = 0;
-			game->probed_time = 0;
+			next->probing = 0;
+			next->probed_time = 0;
 			refused++;
 		}
 	}
@@ -774,6 +831,26 @@ static void newer_heard(const unsigned char *key_hash)
 	lobby.newer[free_index].used = 1;
 }
 
+/* whether a listing heard is worth a queue place: one this version can show,
+of about now. Another version's is not (a newer one's host counted:
+newer_heard), nor one outside its time window. Its header is not verified
+yet, so a forged one can only keep its own listing out; the queue's checks,
+the signature's included, still decide what is shown. */
+static int listing_wanted(const unsigned char *payload, int size, int retained, const unsigned char *key_hash)
+{
+	struct listing listing;
+
+	if (!listing_read(payload, size, &listing))
+		return 0;
+	if (listing.version != HALO_PORT_NETWORK_VERSION)
+	{
+		if (listing.version > HALO_PORT_NETWORK_VERSION && !(listing.flags & _listing_closed))
+			newer_heard(key_hash);
+		return 0;
+	}
+	return listing_current(&listing, retained);
+}
+
 static void update_browsing(void)
 {
 	unsigned long start = p2p_now();
@@ -793,28 +870,14 @@ static void update_browsing(void)
 		int good;
 
 		memmove(lobby.queue, lobby.queue + 1, sizeof(*lobby.queue) * (size_t)(--lobby.queue_count));
-		/* (a newer version's game is counted, not shown: its host's key
-		hash only, unverified, so it is no more than a count) */
-		if (lobby.browsing && listing_read(queued.payload, queued.size, &listing) &&
-			listing.version > HALO_PORT_NETWORK_VERSION && !(listing.flags & _listing_closed))
-		{
-			newer_heard(queued.key_hash);
-			continue;
-		}
+		/* (listing_wanted let it in; its key and its time are checked
+		again here, where its signature is: the time it was queued at may
+		have run out) */
 		if (!listing_read(queued.payload, queued.size, &listing) || listing.version != HALO_PORT_NETWORK_VERSION ||
-			!signing_key_hash(listing.key, key_hash) || memcmp(key_hash, queued.key_hash, P2P_KEY_HASH_SIZE))
+			!signing_key_hash(listing.key, key_hash) || memcmp(key_hash, queued.key_hash, P2P_KEY_HASH_SIZE) ||
+			!listing_current(&listing, queued.retained))
 		{
 			continue;
-		}
-		/* a slot's retained copy: only one of about now (a host that died
-		left it, and nothing cleared it); a live one: not one long gone,
-		published again by someone who kept it */
-		{
-			long difference = (long)(listing.time - (unsigned long)time(NULL));
-			long window = queued.retained ? RETAINED_WINDOW : LIVE_WINDOW;
-
-			if (difference > window || difference < -window)
-				continue;
 		}
 		/* (the work, without the lock: the game's threads need not wait) */
 		pthread_mutex_unlock(&p2p_lock);
@@ -833,11 +896,14 @@ static void update_browsing(void)
 		{
 			lobby.games[index].master = 0;
 			lobby.games[index].listing.master = 0;
+			lobby.games[index].listing.master_key_id_count = 0;
 		}
 		if (lobby.newer[index].used && elapsed(lobby.newer[index].heard_time, GAME_EXPIRY))
 			lobby.newer[index].used = 0;
 	}
-	if (lobby.browsing)
+	/* (the listings still waiting are shown before the probes start, which
+	then start in the order shown, unless they keep coming) */
+	if (lobby.browsing && (!lobby.queue_count || elapsed(lobby.browse_time, PROBE_HOLD)))
 		update_probes();
 }
 
@@ -852,7 +918,8 @@ void p2p_lobby_probed(const unsigned char *identifier, int ping)
 		if (game->used && !memcmp(game->listing.identifier, identifier, P2P_IDENTIFIER_SIZE))
 		{
 			game->probing = 0;
-			game->probed_time = p2p_now() | 1;
+			game->refreshing = 0;
+			game->probed_time = (p2p_now() - 1) | 1;
 			/* (one not reached this time keeps the last it had) */
 			if (ping >= 0)
 				game->ping = ping;
@@ -881,7 +948,7 @@ int p2p_lobby_host_listing(unsigned char *bytes, int size)
 }
 
 int p2p_lobby_take_master_listing(const unsigned char *payload, int size, const char *publisher, const char *region,
-	int network_version_shown, int dedicated)
+	int network_version_shown, int dedicated, const unsigned char *master_key_id)
 {
 	struct listing listing;
 	struct queued queued;
@@ -926,6 +993,22 @@ int p2p_lobby_take_master_listing(const unsigned char *payload, int size, const 
 			snprintf(game->listing.region, sizeof(game->listing.region), "%s", region ? region : "");
 			if (game->listing.master_count < 255)
 				game->listing.master_count++;
+			/* (the master among those that list it: a Discord link's pass
+			is shown from one of them, player_link.c) */
+			if (master_key_id)
+			{
+				int known;
+
+				for (known = 0; known < game->listing.master_key_id_count &&
+					memcmp(game->listing.master_key_ids[known], master_key_id, P2P_LISTING_MASTER_KEY_ID_SIZE); known++)
+				{
+				}
+				if (known == game->listing.master_key_id_count && known < P2P_LISTING_MAXIMUM_MASTERS)
+				{
+					memcpy(game->listing.master_key_ids[known], master_key_id, P2P_LISTING_MASTER_KEY_ID_SIZE);
+					game->listing.master_key_id_count++;
+				}
+			}
 			taken = 1;
 		}
 	}
@@ -1061,6 +1144,7 @@ void p2p_lobby_browse(int on)
 	if (on != lobby.browsing)
 	{
 		lobby.browsing = on;
+		lobby.browse_time = p2p_now();
 		if (!on)
 		{
 			memset(lobby.games, 0, sizeof(lobby.games));
@@ -1081,12 +1165,19 @@ void p2p_lobby_refresh(void)
 
 	pthread_mutex_lock(&p2p_lock);
 	if (lobby.browsing)
+	{
 		lobby.query_wanted = 1;
-	/* (the pings timed again) */
+		lobby.browse_time = p2p_now();
+	}
+	/* (the pings timed again, a probe under way included; a master
+	server's game is not timed) */
 	for (index = 0; index < MAXIMUM_GAMES; index++)
 	{
-		if (!lobby.games[index].probing)
-			lobby.games[index].probed_time = 0;
+		struct game *game = &lobby.games[index];
+
+		if (!game->probing)
+			game->probed_time = 0;
+		game->refreshing = game->used && game->has_token && !game->master;
 	}
 	pthread_mutex_unlock(&p2p_lock);
 	master_list_refresh();
@@ -1124,14 +1215,32 @@ int p2p_lobby_games(struct p2p_listing *games, int maximum_count)
 	{
 		if (!lobby.games[index].used)
 			continue;
-		games[count] = lobby.games[index].listing;
-		games[count].failed = (unsigned char)identifier_failed(games[count].identifier);
-		games[count].ping = (short)lobby.games[index].ping;
+		game_listed(&lobby.games[index], &games[count]);
 		count++;
 	}
 	pthread_mutex_unlock(&p2p_lock);
 	qsort(games, (size_t)count, sizeof(*games), listing_order);
 	return count;
+}
+
+void p2p_lobby_shown(const struct p2p_listing *games, int count)
+{
+	int place, index;
+
+	pthread_mutex_lock(&p2p_lock);
+	for (index = 0; index < MAXIMUM_GAMES; index++)
+		lobby.games[index].shown = 0;
+	for (place = 0; place < count; place++)
+	{
+		for (index = 0; index < MAXIMUM_GAMES; index++)
+		{
+			struct game *game = &lobby.games[index];
+
+			if (game->used && !memcmp(game->listing.identifier, games[place].identifier, P2P_IDENTIFIER_SIZE))
+				game->shown = place + 1;
+		}
+	}
+	pthread_mutex_unlock(&p2p_lock);
 }
 
 int p2p_listing_unlock(struct p2p_listing *listing, const char *password)
